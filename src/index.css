@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #140e06;
+  --color-gold: #d4a017;
+  --color-body: #f4e6c4;
+  --color-muted: #a07830;
+  --color-border: #3a2810;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-body);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+body::after {
+  content: "";
+  display: block;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+@keyframes glitch {
+  0% { transform: translate(0) }
+  20% { transform: translate(-2px, 2px) skewX(-10deg) }
+  40% { transform: translate(-2px, -2px) }
+  60% { transform: translate(2px, 2px) skewX(10deg) }
+  80% { transform: translate(2px, -2px) }
+  100% { transform: translate(0) }
+}
+
+.animate-glitch {
+  animation: glitch 0.2s linear infinite;
+  filter: invert(10%) sepia(100%) hue-rotate(300deg) saturate(500%);
+  pointer-events: none;
+}
