@@ -30,6 +30,9 @@ const GRID_H = 24;
 const TILE_SIZE = 32; // Visual size in px (w-8 h-8 is 32px)
 const VIEWPORT_W = 640;
 const VIEWPORT_H = 480;
+const LASER_OVERRIDE_MS = 8000;
+const LURE_ACTIVE_MS = 10000;
+const LURE_COOLDOWN_MS = 18000;
 
 type DialogueOption = {
   text: string;
@@ -38,6 +41,8 @@ type DialogueOption = {
   end?: boolean;
 };
 type DialogueNode = { text: string; options: DialogueOption[] };
+type InteractionPhase = "dialogue" | "terminal" | "minigame" | null;
+type MinigameSession = { entityId: string; startedAt: number } | null;
 
 export type FileSystemNode = {
   type: "file" | "dir";
@@ -499,14 +504,24 @@ export function Round2Page() {
   const [inventory, setInventory] = useSharedState<string[]>("r2_inv", []);
   const [clues, setClues] = useSharedState<string[]>("r2_clues", []);
   const [disabledLasers, setDisabledLasers] = useSharedState<string[]>(
-    "r2_lasers_disabled",
+    "r2_lasers",
+    [],
+  );
+  const [solvedTerminals, setSolvedTerminals] = useSharedState<string[]>(
+    "r2_solved_terminals",
     [],
   );
   const [activeLure, setActiveLure] = useSharedState<{
     x: number;
     y: number;
     id: string;
-  } | null>("r2_active_lure", null);
+  } | null>("r2_lure", null);
+  const [lureCooldownUntil, setLureCooldownUntil] = useSharedState<number>(
+    "r2_lure_cooldown_until",
+    0,
+  );
+  const [minigameSession, setMinigameSession] =
+    useSharedState<MinigameSession>("r2_minigame_session", null);
   const [globalEvidence, setGlobalEvidence] = useSharedState<any[]>(
     "global_evidence",
     [],
@@ -514,7 +529,7 @@ export function Round2Page() {
 
   const [interactionState, setInteractionState] = useState<{
     entity: Entity | null;
-    phase: "dialogue" | "terminal" | "minigame" | null;
+    phase: InteractionPhase;
     currentNodeId: string;
     terminalInput: string;
     terminalOutput: string[];
@@ -534,7 +549,9 @@ export function Round2Page() {
   const getEntityAt = (x: number, y: number) => {
     return displayEntities.find(
       (e) =>
-        Math.abs(e.x - x) <= 1 && Math.abs(e.y - y) <= 1 && e.type !== "guard",
+        Math.abs(e.x - x) <= 1 &&
+        Math.abs(e.y - y) <= 1 &&
+        (e.type === "item" || e.type === "npc" || e.type === "terminal"),
     );
   };
 
@@ -592,8 +609,7 @@ export function Round2Page() {
                 // Move towards lure
                 const nextX = e.x + (dx > 0 ? 1 : dx < 0 ? -1 : 0);
                 const nextY = e.y + (dy > 0 ? 1 : dy < 0 ? -1 : 0);
-                // Simple wall check - we use displayEntities here, 
-                // but for movement we just check the static wall patterns
+                // Keep distracted guards inside the tactical grid.
                 if (nextX >= 0 && nextX < GRID_W && nextY >= 0 && nextY < GRID_H) {
                   return { ...e, x: nextX, y: nextY };
                 }
@@ -611,11 +627,119 @@ export function Round2Page() {
       );
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeLure]);
 
   useEffect(() => {
     checkGuardCollision();
   }, [playerPos, displayEntities, checkGuardCollision]);
+
+  const buildMinigameData = (type?: Entity["minigameType"]) => {
+    if (type === "wire") {
+      return { wires: ["red", "green", "blue", "yellow"], solution: "green" };
+    }
+    if (type === "frequency") return { current: 0, target: 440 };
+    if (type === "hex") return { hex: "E5-C9-F2" };
+    return undefined;
+  };
+
+  const openInteraction = useCallback(
+    (entity: Entity) => {
+      const terminalSolved =
+        entity.type === "terminal" && solvedTerminals.includes(entity.id);
+      const phase: InteractionPhase =
+        entity.type === "terminal"
+          ? entity.minigameType && !terminalSolved
+            ? "minigame"
+            : "terminal"
+          : "dialogue";
+
+      setInteractionState((prev) => ({
+        ...prev,
+        entity,
+        phase,
+        currentNodeId: entity.startNode || "root",
+        terminalInput: "",
+        terminalOutput: [
+          "Welcome to TT_OS Shell.",
+          'Type "help" for a list of commands.',
+        ],
+        terminalPwd: [],
+        terminalSuccess: terminalSolved || clues.includes(entity.clue || ""),
+        minigameData: buildMinigameData(entity.minigameType),
+      }));
+
+      if (!isIntel && phase === "minigame") {
+        setMinigameSession({ entityId: entity.id, startedAt: Date.now() });
+      }
+    },
+    [clues, isIntel, setMinigameSession, solvedTerminals],
+  );
+
+  useEffect(() => {
+    if (!isIntel || !minigameSession) return;
+    if (
+      interactionState.phase === "minigame" &&
+      interactionState.entity?.id === minigameSession.entityId
+    ) {
+      return;
+    }
+
+    const entity = displayEntities.find(
+      (e) => e.id === minigameSession.entityId && e.type === "terminal",
+    );
+    if (entity && !solvedTerminals.includes(entity.id)) {
+      setInteractionState((prev) => ({
+        ...prev,
+        entity,
+        phase: "minigame",
+        currentNodeId: entity.startNode || "root",
+        terminalInput: "",
+        terminalOutput: [
+          "Welcome to TT_OS Shell.",
+          'Type "help" for a list of commands.',
+        ],
+        terminalPwd: [],
+        terminalSuccess: false,
+        minigameData: buildMinigameData(entity.minigameType),
+      }));
+    }
+  }, [
+    displayEntities,
+    interactionState.entity?.id,
+    interactionState.phase,
+    isIntel,
+    minigameSession,
+    solvedTerminals,
+  ]);
+
+  useEffect(() => {
+    if (!minigameSession) return;
+    if (solvedTerminals.includes(minigameSession.entityId)) {
+      setMinigameSession(null);
+      if (
+        isIntel &&
+        interactionState.phase === "minigame" &&
+        interactionState.entity?.id === minigameSession.entityId
+      ) {
+        setInteractionState({
+          entity: null,
+          phase: null,
+          currentNodeId: "",
+          terminalInput: "",
+          terminalOutput: [],
+          terminalPwd: [],
+          terminalSuccess: false,
+        });
+      }
+    }
+  }, [
+    interactionState.entity?.id,
+    interactionState.phase,
+    isIntel,
+    minigameSession,
+    setMinigameSession,
+    solvedTerminals,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -651,26 +775,7 @@ export function Round2Page() {
                 setInventory((prev) => [...prev, entity.itemKey!]);
               setRemovedEntities((prev) => [...prev, entity.id]);
             } else {
-              setInteractionState((prev) => ({
-                ...prev,
-                entity,
-                phase: entity.type === "terminal" 
-                  ? (entity.minigameType ? "minigame" : "terminal") 
-                  : "dialogue",
-                currentNodeId: entity.startNode || "root",
-                terminalInput: "",
-                terminalOutput: [
-                  "Welcome to TT_OS Shell.",
-                  'Type "help" for a list of commands.',
-                ],
-                terminalPwd: [],
-                terminalSuccess: clues.includes(entity.clue || ""),
-                minigameData: entity.minigameType === "wire" 
-                   ? { wires: ["red", "green", "blue", "yellow"], solution: "green" }
-                   : entity.minigameType === "frequency"
-                   ? { current: 0, target: 440 }
-                   : { hex: "E5-C9-F2" }
-              }));
+              openInteraction(entity);
             }
           }
           return;
@@ -691,14 +796,13 @@ export function Round2Page() {
     [
       playerPos,
       interactionState.phase,
-      clues,
       displayEntities,
       inventory,
       setPlayerPos,
       setRemovedEntities,
       setInventory,
-      setInteractionState,
       isIntel,
+      openInteraction,
     ],
   );
 
@@ -708,6 +812,14 @@ export function Round2Page() {
   }, [handleKeyDown]);
 
   const closeInteraction = () => {
+    if (
+      !isIntel &&
+      interactionState.phase === "minigame" &&
+      minigameSession?.entityId === interactionState.entity?.id
+    ) {
+      setMinigameSession(null);
+    }
+
     setInteractionState({
       entity: null,
       phase: null,
@@ -719,25 +831,46 @@ export function Round2Page() {
     });
   };
 
+  const addEvidence = (
+    id: string,
+    source: string,
+    summary: string,
+    details: string,
+  ) => {
+    setGlobalEvidence(prev => {
+      if (prev?.find((e: any) => e.id === id)) return prev;
+      return [
+        ...(prev || []),
+        {
+          id,
+          source,
+          summary,
+          details,
+          status: "new" as const,
+        },
+      ];
+    });
+  };
+
   const completeMinigame = () => {
     const { entity } = interactionState;
     if (!entity) return;
 
-    if (entity.clue && !clues.includes(entity.clue)) {
-      setClues((prev) => [...prev, entity.clue!]);
-      
-      const newEvidence = {
-        id: entity.id,
-        source: `Round 2: ${entity.name}`,
-        summary: entity.clue,
-        details: "Recovered via tactical infiltration and terminal hack.",
-        status: "new" as const
-      };
-      
-      setGlobalEvidence(prev => {
-        if (prev?.find((e: any) => e.id === entity.id)) return prev;
-        return [...(prev || []), newEvidence];
-      });
+    setSolvedTerminals((prev) =>
+      prev.includes(entity.id) ? prev : [...prev, entity.id],
+    );
+    setMinigameSession(null);
+
+    if (entity.clue) {
+      setClues((prev) =>
+        prev.includes(entity.clue!) ? prev : [...prev, entity.clue!],
+      );
+      addEvidence(
+        entity.id,
+        `Round 2: ${entity.name}`,
+        entity.clue,
+        "Recovered via tactical infiltration and terminal hack.",
+      );
       
       toast.success("EVIDENCE PINBOARD UPDATED", {
         description: entity.clue
@@ -756,21 +889,16 @@ export function Round2Page() {
   };
 
   const selectDialogueOption = (opt: DialogueOption) => {
-    if (opt.clueRes && !clues.includes(opt.clueRes)) {
-      setClues((prev) => [...prev, opt.clueRes!]);
-      
-      const newEvidence = {
-        id: `clue_${opt.clueRes}`,
-        source: `Round 2: ${interactionState.entity?.name || 'Inquiry'}`,
-        summary: opt.clueRes,
-        details: "Obtained through witness interrogation.",
-        status: "new" as const
-      };
-      
-      setGlobalEvidence(prev => {
-        if (prev?.find((e: any) => e.id === newEvidence.id)) return prev;
-        return [...(prev || []), newEvidence];
-      });
+    if (opt.clueRes) {
+      setClues((prev) =>
+        prev.includes(opt.clueRes!) ? prev : [...prev, opt.clueRes!],
+      );
+      addEvidence(
+        `clue_${opt.clueRes}`,
+        `Round 2: ${interactionState.entity?.name || 'Inquiry'}`,
+        opt.clueRes,
+        "Obtained through witness interrogation.",
+      );
 
       toast.success("EVIDENCE PINBOARD UPDATED", {
         description: opt.clueRes
@@ -872,8 +1000,22 @@ export function Round2Page() {
               ? `${targetPwd.join("/")}/${filename}`
               : filename;
           if (fullPathJoined === entity.expectedFile) {
-            if (entity.clue && !clues.includes(entity.clue)) {
-              setClues((prev) => [...prev, entity.clue!]);
+            setSolvedTerminals((prev) =>
+              prev.includes(entity.id) ? prev : [...prev, entity.id],
+            );
+            if (entity.clue) {
+              setClues((prev) =>
+                prev.includes(entity.clue!) ? prev : [...prev, entity.clue!],
+              );
+              addEvidence(
+                entity.id,
+                `Round 2: ${entity.name}`,
+                entity.clue,
+                "Recovered by locating and extracting the target terminal file.",
+              );
+              toast.success("EVIDENCE PINBOARD UPDATED", {
+                description: entity.clue
+              });
               api
                 .post("/api/r0/submit", { task: `clue_${entity.clue}` })
                 .catch(() => {});
@@ -930,22 +1072,40 @@ export function Round2Page() {
           if (entity?.type === "pressure_plate") {
             onTileClick = () => {
               if (entity.linkedLaserId) {
-                setDisabledLasers(prev => 
-                  prev.includes(entity.linkedLaserId!) 
-                  ? prev.filter(id => id !== entity.linkedLaserId) 
-                  : [...prev, entity.linkedLaserId!]
+                const laserId = entity.linkedLaserId;
+                if (disabledLasers.includes(laserId)) {
+                  toast.message("Laser override already active.");
+                  return;
+                }
+
+                setDisabledLasers(prev =>
+                  prev.includes(laserId) ? prev : [...prev, laserId],
                 );
-                toast.success(`Security Laser ${disabledLasers.includes(entity.linkedLaserId!) ? 'RE-ACTIVATED' : 'DE-ACTIVATED'}`);
+                toast.success("Security Laser DE-ACTIVATED", {
+                  description: "Override window is temporary.",
+                });
+                setTimeout(() => {
+                  setDisabledLasers(prev => prev.filter(id => id !== laserId));
+                }, LASER_OVERRIDE_MS);
               }
             };
           } else if (entity?.type === "lure_trigger") {
             onTileClick = () => {
-              if (activeLure) {
-                toast.error("Lure system on cooldown...");
+              const now = Date.now();
+              if (activeLure || now < lureCooldownUntil) {
+                const remainingMs = activeLure
+                  ? LURE_ACTIVE_MS
+                  : Math.max(0, lureCooldownUntil - now);
+                toast.error("Lure system on cooldown...", {
+                  description: `${Math.ceil(remainingMs / 1000)}s remaining`,
+                });
               } else {
+                setLureCooldownUntil(now + LURE_COOLDOWN_MS);
                 setActiveLure({x, y, id: entity.id});
                 toast.warning(`ALARM TRIGGERED AT (${x}, ${y})!`);
-                setTimeout(() => setActiveLure(null), 10000); // 10s lure
+                setTimeout(() => {
+                  setActiveLure(prev => prev?.id === entity.id ? null : prev);
+                }, LURE_ACTIVE_MS);
               }
             };
           }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FC } from "react";
 import { FolderOpen, X, CheckCircle, XCircle } from "lucide-react";
 import { useSharedState } from "../hooks/useSharedState";
 
@@ -115,7 +115,12 @@ export function EvidenceDrawer() {
   );
 }
 
-function EvidenceCard({ item, onToggle }: { item: EvidenceItem, onToggle: (id: string, s: "key" | "irrelevant" | "new") => void }) {
+type EvidenceCardProps = {
+  item: EvidenceItem;
+  onToggle: (id: string, s: "key" | "irrelevant" | "new") => void;
+};
+
+const EvidenceCard: FC<EvidenceCardProps> = ({ item, onToggle }) => {
   return (
     <div className={`p-3 border relative overflow-hidden bg-black/40 ${
       item.status === 'key' ? 'border-green-500/50' :
@@ -147,4 +152,4 @@ function EvidenceCard({ item, onToggle }: { item: EvidenceItem, onToggle: (id: s
       {item.details && <p className="ml-2 mt-1 text-xs text-gray-400 italic">{item.details}</p>}
     </div>
   );
-}
+};

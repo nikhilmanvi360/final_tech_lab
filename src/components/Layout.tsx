@@ -1,9 +1,10 @@
 import { Link, Outlet } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import { LogOut, TerminalSquare, HelpCircle } from "lucide-react";
 import { TutorialModal } from "./TutorialModal";
 import { EvidenceDrawer } from "./EvidenceDrawer";
+import { CutsceneOverlay, CutsceneId } from "./CutsceneOverlay";
 import { useGameStore } from "../store/useGameStore";
 import { api } from "../services/api";
 
@@ -62,6 +63,11 @@ export function Layout({
   const [cmdRes, setCmdRes] = useState("");
   const [socketInstance, setSocketInstance] = useState<any>(null);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [activeCutscene, setActiveCutscene] = useState<CutsceneId | null>(null);
+
+  const handleCutsceneDone = useCallback(() => {
+    setActiveCutscene(null);
+  }, []);
 
   useEffect(() => {
     let lockoutInterval: NodeJS.Timeout;
@@ -113,6 +119,11 @@ export function Layout({
 
     socket.on("sync_state_patch", (patch: { key: string; value: any }) => {
       patchSharedState(patch.key, patch.value);
+    });
+
+    // 🎬 Cutscene trigger from admin panel
+    socket.on("play_cutscene", (data: { cutsceneId: CutsceneId }) => {
+      setActiveCutscene(data.cutsceneId);
     });
 
     return () => {
@@ -263,6 +274,9 @@ export function Layout({
       </header>
 
       {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} />}
+
+      {/* 🎬 Cinematic Cutscene Overlay */}
+      <CutsceneOverlay cutsceneId={activeCutscene} onComplete={handleCutsceneDone} />
 
       {/* Live Ticker */}
       <div className="bg-border text-gold text-xs py-1 px-4 overflow-hidden whitespace-nowrap overflow-ellipsis border-b border-black">
