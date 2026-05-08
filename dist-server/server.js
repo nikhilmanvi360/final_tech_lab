@@ -340,15 +340,20 @@ async function startServer() {
     if (!isProd) {
         const { createServer: createViteServer } = await import('vite');
         const vite = await createViteServer({
-            server: { middlewareMode: true, hmr: false },
+            server: {
+                middlewareMode: true,
+                hmr: {
+                    server: httpServer
+                }
+            },
             appType: 'spa'
         });
         app.use(vite.middlewares);
     }
     else {
-        app.use(express.static(path.join(__dirname, 'dist')));
+        app.use(express.static(path.join(__dirname, '..', 'dist')));
         app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, 'dist/index.html'));
+            res.sendFile(path.join(__dirname, '..', 'dist/index.html'));
         });
     }
     const PORT = process.env.PORT || 3000;
@@ -356,4 +361,6 @@ async function startServer() {
         console.log(`Server started on port ${PORT}`);
     });
 }
-startServer();
+startServer().catch(err => {
+    console.error("Failed to start server:", err);
+});
