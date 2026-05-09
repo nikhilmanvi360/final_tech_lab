@@ -157,19 +157,21 @@ app.post('/api/admin/overclock', authenticateToken, requireAdmin, (req, res) => 
   res.json({ success: true, multiplier });
 });
 
-let mockTeams = [
-  { id: 1, name: 'TEAM_ALPHA', members: ['Alice (Field)', 'Bob (Intel)'], score: 850, is_disabled: false },
-  { id: 2, name: 'TEAM_BETA', members: ['Charlie (Field)', 'Dave (Intel)'], score: 450, is_disabled: false },
-  { id: 3, name: 'TEAM_GAMMA', members: ['Eve (Field)', 'Frank (Intel)'], score: 0, is_disabled: true }
-];
+// Mock teams removed to strictly rely on Supabase
 
 app.get('/api/admin/teams', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { data, error } = await supabase.from('teams').select('id, name, score, is_disabled, members');
     if (error) throw error;
-    res.json({ teams: data });
-  } catch (err) {
-    res.json({ teams: mockTeams });
+
+    const enrichedData = data.map(t => ({
+      ...t,
+      is_online: io.sockets.adapter.rooms.has(t.name)
+    }));
+
+    res.json({ teams: enrichedData });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to fetch teams' });
   }
 });
 
@@ -187,16 +189,7 @@ app.post('/api/admin/teams', authenticateToken, requireAdmin, async (req, res) =
     if (error) throw error;
     res.json({ success: true, team: data });
   } catch (err: any) {
-    // Fallback for preview
-    const newTeam = { 
-      id: mockTeams.length + 1, 
-      name, 
-      members: ['Unknown'], 
-      score: 0, 
-      is_disabled: false 
-    };
-    mockTeams.push(newTeam);
-    res.json({ success: true, team: newTeam });
+    res.status(500).json({ error: err.message || 'Failed to create team' });
   }
 });
 
@@ -208,10 +201,8 @@ app.post('/api/admin/teams/:id/toggle', authenticateToken, requireAdmin, async (
     const { error } = await supabase.from('teams').update({ is_disabled: disabled }).eq('id', teamId);
     if (error) throw error;
     res.json({ success: true, is_disabled: disabled });
-  } catch (err) {
-    const team = mockTeams.find(t => t.id === teamId);
-    if (team) team.is_disabled = disabled;
-    res.json({ success: true, is_disabled: disabled });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to update team status' });
   }
 });
 
@@ -223,10 +214,19 @@ app.put('/api/admin/teams/:id/members', authenticateToken, requireAdmin, async (
     const { error } = await supabase.from('teams').update({ members }).eq('id', teamId);
     if (error) throw error;
     res.json({ success: true, members });
-  } catch (err) {
-    const team = mockTeams.find(t => t.id === teamId);
-    if (team) team.members = members;
-    res.json({ success: true, members });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to update members' });
+  }
+});
+
+app.delete('/api/admin/teams/:id', authenticateToken, requireAdmin, async (req, res) => {
+  const teamId = parseInt(req.params.id);
+  try {
+    const { error } = await supabase.from('teams').delete().eq('id', teamId);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to delete team' });
   }
 });
 
@@ -327,30 +327,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.json({ team: { id: team.id, name: team.name, score: team.score, role: team.role } });
   } catch (err: any) {
-    // MOCK PREVIEW FALLBACK
-    console.log("Using Mock Auth Fallback");
-    
-    const mockTeamFromDB = mockTeams.find(t => t.name.toLowerCase() === teamName.toLowerCase());
-    if (mockTeamFromDB && mockTeamFromDB.is_disabled) {
-      return res.status(403).json({ error: 'Team account is disabled' });
-    }
-
-    const role = teamName.toUpperCase() === 'ADMIN' ? 'admin' : 'detective';
-    const mockTeam = { id: 1, name: teamName.toUpperCase(), score: mockTeamFromDB?.score || 0, role: role, token_version: 1 };
-    
-    const token = jwt.sign(
-      mockTeam,
-      JWT_SECRET,
-      { expiresIn: '48h' }
-    );
-
-    res.cookie('tech_detective_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 48 * 60 * 60 * 1000
-    });
-
-    return res.json({ team: mockTeam });
+    res.status(500).json({ error: err.message || 'Database error during login' });
   }
 });
 
@@ -422,3 +399,5 @@ async function startServer() {
 startServer().catch(err => {
   console.error("Failed to start server:", err);
 });
+
+// trigger reload

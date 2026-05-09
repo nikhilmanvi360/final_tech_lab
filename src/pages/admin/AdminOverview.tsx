@@ -1,6 +1,30 @@
 import { Shield, Activity, Users } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../../services/api';
 
 export function AdminOverview() {
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        const d = await api.get<any>("/api/admin/teams");
+        if (d.teams) {
+          setTeams(d.teams);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTeams();
+  }, []);
+
+  const activeTeamsCount = teams.filter(t => t.is_online).length;
+  const sortedTeams = [...teams].sort((a, b) => b.score - a.score).slice(0, 5);
+
   return (
     <div className="space-y-8 max-w-6xl">
       <h1 className="text-3xl font-bold text-red-500 uppercase tracking-widest border-b border-border pb-4">Command Overview</h1>
@@ -10,7 +34,7 @@ export function AdminOverview() {
           <Users className="w-10 h-10 text-muted" />
           <div>
             <p className="text-muted text-sm uppercase">Active Teams</p>
-            <p className="text-2xl font-bold text-body">3</p>
+            <p className="text-2xl font-bold text-body">{loading ? "..." : activeTeamsCount}</p>
           </div>
         </div>
         <div className="bg-black border border-border p-6 flex items-center gap-4">
@@ -30,30 +54,39 @@ export function AdminOverview() {
       </div>
 
       <div className="grid grid-cols-2 gap-8">
-        {/* Mock Scoreboard */}
+        {/* Live Scoreboard */}
         <div className="border border-border bg-black/50 p-6">
           <h2 className="text-lg font-bold text-gold uppercase mb-4">Live Scoreboard</h2>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-muted border-b border-border">
-                <th className="pb-2">Team</th>
-                <th className="pb-2">Score</th>
-                <th className="pb-2">Badges</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-border/50">
-                <td className="py-2 text-white">TEAM_ALPHA</td>
-                <td className="py-2 text-gold">850</td>
-                <td className="py-2 text-sm text-blue-400">System Restored</td>
-              </tr>
-              <tr className="border-b border-border/50">
-                <td className="py-2 text-white">TEAM_BETA</td>
-                <td className="py-2 text-gold">450</td>
-                <td className="py-2 text-sm text-blue-400"></td>
-              </tr>
-            </tbody>
-          </table>
+          {loading ? (
+            <p className="text-muted">Loading scoreboard...</p>
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-muted border-b border-border">
+                  <th className="pb-2">Team</th>
+                  <th className="pb-2">Score</th>
+                  <th className="pb-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTeams.map((team, idx) => (
+                  <tr key={idx} className="border-b border-border/50">
+                    <td className="py-2 text-white flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${team.is_online ? "bg-blue-400" : "bg-gray-600"}`} />
+                      {team.name}
+                    </td>
+                    <td className="py-2 text-gold">{team.score}</td>
+                    <td className="py-2 text-sm text-blue-400">{team.is_disabled ? "DISABLED" : "ACTIVE"}</td>
+                  </tr>
+                ))}
+                {sortedTeams.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-4 text-center text-muted">No teams found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Mock Event Log */}

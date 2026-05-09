@@ -13,6 +13,22 @@ export function AdminManifest() {
         This document contains all correct sequences, locations, and passwords for the entire TT_OS experience. Do not share with players.
       </p>
 
+      {/* Round 0 */}
+      <div className="bg-black border border-border p-6">
+        <h2 className="text-2xl font-bold text-emerald-500 uppercase flex items-center gap-2 mb-4">
+          <Terminal className="w-6 h-6" /> Round 0: Diagnostics
+        </h2>
+        <div className="space-y-4 font-mono text-sm">
+          <p className="text-muted mb-2">Intel Officers repair code while Field Agents complete a Discrete Math diagnostic.</p>
+          <div className="bg-[#1a140f] border border-border/50 p-4 space-y-2 text-green-400">
+            <p><span className="text-emerald-400">Task 1 (HTML):</span> Wrap the broken list in a <code className="bg-white/10 px-1">&lt;table&gt;</code> element.</p>
+            <p><span className="text-emerald-400">Task 2 (CSS):</span> Remove the blur by setting <code className="bg-white/10 px-1">filter: none;</code> on the .redacted class.</p>
+            <p><span className="text-emerald-400">Task 3 (Python):</span> Decode the Caesar Cipher (shift -3) on "YLNUDP VXQGDUDP" to reveal <code className="bg-white/10 px-1 font-bold">VIKRAM SUNDARAM</code>.</p>
+            <p><span className="text-emerald-400">Math Diagnostic:</span> Field Agents answer 30 MCQ questions to earn bonus points.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Round 1 */}
       <div className="bg-black border border-border p-6">
         <h2 className="text-2xl font-bold text-blue-500 uppercase flex items-center gap-2 mb-4">

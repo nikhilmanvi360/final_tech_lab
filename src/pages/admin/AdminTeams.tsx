@@ -141,13 +141,49 @@ export function AdminTeams() {
     setEditingTeamId(null);
   };
 
+  const handleDeleteTeam = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this team?")) return;
+    try {
+      const data = await api.delete<any>(`/api/admin/teams/${id}`);
+      if (data.success) {
+        setTeams(teams.filter(t => t.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete team.");
+    }
+  };
+
+  const handlePurgeInactiveTeams = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete ALL inactive/disabled teams?")) return;
+    
+    const inactiveTeams = teams.filter(t => !t.active);
+    if (inactiveTeams.length === 0) {
+      alert("No inactive teams to purge.");
+      return;
+    }
+
+    try {
+      // Since there's no bulk delete endpoint, we delete them one by one
+      await Promise.all(inactiveTeams.map(t => api.delete(`/api/admin/teams/${t.id}`)));
+      setTeams(teams.filter(t => t.active));
+      alert(`Purged ${inactiveTeams.length} inactive teams.`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to purge some or all inactive teams.");
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-6xl">
       <div className="flex justify-between items-center border-b border-border pb-4">
         <h1 className="text-3xl font-bold text-red-500 uppercase tracking-widest flex items-center gap-4">
           <Users className="w-8 h-8" /> Team Management
         </h1>
-        <button className="bg-red-900 border border-red-500 text-red-100 px-6 py-2 hover:bg-red-800 transition uppercase font-bold text-sm">
+        <button 
+          onClick={handlePurgeInactiveTeams}
+          className="bg-red-900 border border-red-500 text-red-100 px-6 py-2 hover:bg-red-800 transition uppercase font-bold text-sm"
+        >
           Purge Inactive Teams
         </button>
       </div>
@@ -232,6 +268,7 @@ export function AdminTeams() {
             <thead className="bg-[#1a140f] border-b border-border text-gold text-sm tracking-wide">
               <tr>
                 <th className="p-4">STATUS</th>
+                <th className="p-4">ONLINE</th>
                 <th className="p-4">TEAM NAME</th>
                 <th className="p-4">MEMBERS</th>
                 <th className="p-4">SCORE</th>
@@ -247,6 +284,13 @@ export function AdminTeams() {
                   <td className="p-4">
                     <div
                       className={`w-3 h-3 rounded-full ${team.active ? "bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]"}`}
+                      title={team.active ? "Active Account" : "Disabled Account"}
+                    />
+                  </td>
+                  <td className="p-4">
+                    <div
+                      className={`w-3 h-3 rounded-full ${team.is_online ? "bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.6)]" : "bg-gray-600"}`}
+                      title={team.is_online ? "Online" : "Offline"}
                     />
                   </td>
                   <td className="p-4 font-bold text-white">{team.name}</td>
@@ -333,7 +377,10 @@ export function AdminTeams() {
                         >
                           <Edit className="w-4 h-4 mr-1" /> Edit Members
                         </button>
-                        <button className="text-red-500 hover:text-red-400 transition-colors uppercase text-xs tracking-wider flex items-center justify-center">
+                        <button
+                          onClick={() => handleDeleteTeam(team.id)}
+                          className="text-red-500 hover:text-red-400 transition-colors uppercase text-xs tracking-wider flex items-center justify-center"
+                        >
                           <Trash2 className="w-4 h-4 mr-1" /> Delete
                         </button>
                       </>
@@ -344,7 +391,7 @@ export function AdminTeams() {
               {filteredTeams.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="p-8 text-center text-muted uppercase"
                   >
                     No teams found matching criteria
