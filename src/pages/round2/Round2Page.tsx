@@ -590,7 +590,6 @@ export function Round2Page() {
     if (hitGuard) {
       toast.error("Spotted! Resetting position...");
       setPlayerPos({ x: 1, y: 1 });
-      api.post("/api/systems/fail").catch(() => {});
     }
   }, [displayEntities, playerPos, setPlayerPos, isIntel]);
 
