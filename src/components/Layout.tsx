@@ -62,6 +62,7 @@ export function Layout({
   const [cmdRes, setCmdRes] = useState("");
   const [socketInstance, setSocketInstance] = useState<any>(null);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [displayScore, setDisplayScore] = useState(team.score || 0);
 
   useEffect(() => {
     let lockoutInterval: NodeJS.Timeout;
@@ -88,6 +89,12 @@ export function Layout({
 
     socket.on("score_event", (event: any) => {
       addTickerEvent(event.message);
+    });
+
+    socket.on("team_score_update", (event: any) => {
+      if (event.teamName === team.name && typeof event.score === "number") {
+        setDisplayScore(event.score);
+      }
     });
 
     socket.on("sabotage", (data: any) => {
@@ -130,6 +137,10 @@ export function Layout({
     patchSharedState,
     setSocket,
   ]);
+
+  useEffect(() => {
+    setDisplayScore(team.score || 0);
+  }, [team.score]);
 
   const submitGlobalCmd = async () => {
     if (!globalCmd) return;
@@ -239,7 +250,7 @@ export function Layout({
           </div>
           <div className="text-right bg-black/20 p-2 rounded border border-border">
             <p className="text-xs text-muted uppercase">TEAM SCORE</p>
-            <p className="font-bold text-gold text-2xl">{team.score}</p>
+            <p className="font-bold text-gold text-2xl">{displayScore}</p>
           </div>
           <button
             onClick={() => setShowTutorial(true)}

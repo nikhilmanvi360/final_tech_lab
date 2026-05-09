@@ -39,9 +39,11 @@ const TASKS = [
 
 export function Round0Page() {
   const { team } = useOutletContext<{ team: any }>();
-  const isIntel = team?.playerRole?.includes("Intel"); // 2nd year = HTML, CSS
+  const playerRole = (team?.playerRole || "").toLowerCase();
+  const isIntel = playerRole.includes("intel") || playerRole.includes("2nd year"); // 2nd year = HTML, CSS
+  const firstTaskForRole = isIntel ? 0 : 2;
 
-  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(firstTaskForRole);
   const isTaskAllowed =
     (currentTaskIndex === 0 && isIntel) ||
     (currentTaskIndex === 1 && isIntel) ||
@@ -66,6 +68,7 @@ export function Round0Page() {
   const navigate = useNavigate();
   const [pyodideInstance, setPyodideInstance] = useState<any>(null);
   const [quizScores, setQuizScores] = useState<Record<number, boolean>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
 
   const getCode = (index: number) => {
     if (index === 0) return htmlCode;
@@ -101,6 +104,10 @@ export function Round0Page() {
     setError("");
   }, [currentTaskIndex]);
 
+  useEffect(() => {
+    setCurrentTaskIndex(firstTaskForRole);
+  }, [firstTaskForRole]);
+
   const handleSubmit = async () => {
     const task = TASKS[currentTaskIndex];
     let isCorrect = false;
@@ -131,9 +138,11 @@ export function Round0Page() {
     }
 
     if (isCorrect) {
-      setStatus((prev) => ({ ...prev, [task.id]: true }));
-      // Notify Backend
-      await api.post("/api/r0/submit", { task: task.id });
+      if (!status[task.id]) {
+        setStatus((prev) => ({ ...prev, [task.id]: true }));
+        // Notify Backend only once per completed task.
+        await api.post("/api/r0/submit", { task: task.id });
+      }
 
       if (currentTaskIndex < 2) {
         setTimeout(() => setCurrentTaskIndex((prev) => prev + 1), 1000);
@@ -198,6 +207,12 @@ export function Round0Page() {
   }
 
   const currentTask = TASKS[currentTaskIndex];
+  const isCurrentTaskComplete = status[currentTask.id];
+  const canMoveNext =
+    currentTaskIndex < TASKS.length - 1 &&
+    (!isTaskAllowed || isCurrentTaskComplete);
+  const canUnlockBriefing =
+    currentTaskIndex === TASKS.length - 1 && isCurrentTaskComplete;
 
   return (
     <div className="flex h-full gap-6">
@@ -354,19 +369,34 @@ export function Round0Page() {
 
                 {Object.keys(quizScores).length > 0 && (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      if (quizSubmitted) return;
                       const score =
                         Object.values(quizScores).filter(Boolean).length;
-                      api.post("/api/systems/win", { score }).catch(() => {});
-                      toast.success(
-                        `Quiz submitted! You earned ${score * 10} bonus points for your team!`,
-                      );
-                      // In a real scenario, this would send the score to /api/points or similar frontend state
+                      try {
+                        await api.post("/api/systems/win", { score });
+                        setQuizSubmitted(true);
+                        toast.success(
+                          `Quiz submitted! You earned ${score * 10} bonus points for your team!`,
+                        );
+                      } catch (err: any) {
+                        if (err.status === 409) {
+                          setQuizSubmitted(true);
+                          toast.warning("Math assessment was already submitted.");
+                        } else {
+                          toast.error("Failed to submit quiz score.");
+                        }
+                      }
                     }}
-                    disabled={Object.keys(quizScores).length < MATH_MCQS.length}
+                    disabled={
+                      quizSubmitted ||
+                      Object.keys(quizScores).length < MATH_MCQS.length
+                    }
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {Object.keys(quizScores).length < MATH_MCQS.length
+                    {quizSubmitted
+                      ? "Quiz Score Submitted"
+                      : Object.keys(quizScores).length < MATH_MCQS.length
                       ? `Answer all ${MATH_MCQS.length} questions to submit...`
                       : "Submit Quiz for Bonus Points"}
                   </button>
@@ -378,10 +408,10 @@ export function Round0Page() {
 
         <button
           onClick={handleSubmit}
-          disabled={!isTaskAllowed || status[currentTask.id]}
+          disabled={!isTaskAllowed}
           className="bg-border border border-gold text-gold font-bold py-3 uppercase hover:bg-gold hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {status[currentTask.id] ? "Task Completed" : "Execute & Verify"}
+          {status[currentTask.id] ? "Verify Again" : "Execute & Verify"}
         </button>
 
         <div className="flex justify-between items-center mt-2">
@@ -407,7 +437,11 @@ export function Round0Page() {
                 );
               }
             }}
-            disabled={!status[TASKS[currentTaskIndex].id]}
+            disabled={
+              currentTaskIndex === TASKS.length - 1
+                ? !canUnlockBriefing
+                : !canMoveNext
+            }
             className="px-4 py-2 border border-border text-muted hover:text-gold hover:border-gold disabled:opacity-50 disabled:cursor-not-allowed uppercase text-xs font-bold transition"
           >
             {currentTaskIndex === TASKS.length - 1

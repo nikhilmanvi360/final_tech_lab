@@ -114,13 +114,13 @@ export const requireAdmin = (req, res, next) => {
 };
 // --- API Routes (Phase 2 Auth) ---
 const globalFirstSolves = new Set();
-let activeInterceptCode = null;
+// activeInterceptCode removed
 // Game Core State
 let currentMultiplier = 1;
 const teamStrikes = new Map();
 const recordScoreEvent = async (teamId, eventType, points, metadata = {}) => {
-    if (!teamId || points === 0)
-        return;
+    if (!teamId)
+        return null;
     const { error } = await supabase.from('score_events').insert([
         {
             team_id: teamId,
@@ -131,26 +131,73 @@ const recordScoreEvent = async (teamId, eventType, points, metadata = {}) => {
     ]);
     if (error) {
         console.error('Failed to record score event:', error.message);
+        throw error;
     }
+    const { data: team, error: scoreError } = await supabase
+        .from('teams')
+        .select('name, score')
+        .eq('id', teamId)
+        .single();
+    if (scoreError) {
+        console.error('Failed to fetch updated score:', scoreError.message);
+        return null;
+    }
+    io.emit('team_score_update', {
+        teamId,
+        teamName: team.name,
+        score: team.score,
+    });
+    return team.score;
 };
-// Simulate Adversary Events
-setInterval(() => {
-    if (!activeInterceptCode && Math.random() > 0.4) {
-        activeInterceptCode = 'DEFUSE-' + Math.floor(1000 + Math.random() * 9000);
-        io.emit('score_event', { message: `[ADVERSARY BREACH] System compromised. First to enter '${activeInterceptCode}' in SYS_TERMINAL gets ${100 * currentMultiplier} PTS.` });
+const hasScoreEvent = async (teamId, eventType, metadataFilter) => {
+    if (!teamId)
+        return false;
+    let query = supabase
+        .from('score_events')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('event_type', eventType)
+        .limit(1);
+    if (metadataFilter) {
+        query = query.contains('metadata', metadataFilter);
     }
-}, 45000);
+    const { data, error } = await query;
+    if (error)
+        throw error;
+    return Boolean(data?.length);
+};
+const hasGlobalScoreEvent = async (eventType, metadataFilter) => {
+    let query = supabase
+        .from('score_events')
+        .select('id')
+        .eq('event_type', eventType)
+        .limit(1);
+    if (metadataFilter) {
+        query = query.contains('metadata', metadataFilter);
+    }
+    const { data, error } = await query;
+    if (error)
+        throw error;
+    return Boolean(data?.length);
+};
+// Adversary Events removed
 app.post('/api/systems/win', authenticateToken, async (req, res) => {
-    const { score } = req.body;
-    if (score && score > 0) {
+    const score = Number(req.body.score);
+    if (!Number.isInteger(score) || score < 0 || score > 10) {
+        return res.status(400).json({ error: 'Invalid score' });
+    }
+    try {
+        if (await hasScoreEvent(req.user?.id, 'math_assessment')) {
+            return res.status(409).json({ error: 'Math assessment already submitted' });
+        }
         const points = score * 10;
-        await recordScoreEvent(req.user?.id, 'math_assessment', points, { score });
+        const updatedScore = await recordScoreEvent(req.user?.id, 'math_assessment', points, { score });
         io.emit('score_event', { message: `[DIAGNOSTIC] ${req.user?.name} scored ${score} on Math Assessment (+${points} PTS)` });
+        res.json({ success: true, score: updatedScore });
     }
-    else {
-        io.emit('score_event', { message: `[SYSTEM] ${req.user?.name} has authorized a system override.` });
+    catch (err) {
+        res.status(500).json({ error: err.message || 'Failed to record score' });
     }
-    res.json({ success: true });
 });
 // Anti-Bruteforce Global Fail Route
 app.post('/api/systems/fail', authenticateToken, (req, res) => {
@@ -250,49 +297,67 @@ app.delete('/api/admin/teams/:id', authenticateToken, requireAdmin, async (req, 
     }
 });
 app.post('/api/terminal/execute', authenticateToken, async (req, res) => {
-    const { command } = req.body;
-    if (activeInterceptCode && command === activeInterceptCode) {
-        const points = 100 * currentMultiplier;
-        await recordScoreEvent(req.user?.id, 'defuse_breach', points, { command });
-        io.emit('score_event', { message: `[DEFENSE SUCCESS] ${req.user?.name} neutralized the breach! (+${100 * currentMultiplier} PTS)` });
-        activeInterceptCode = null;
-        return res.json({ success: true, message: 'Intercept successful!' });
-    }
     res.status(400).json({ error: 'Command unrecognized or expired.' });
 });
 app.post('/api/broker/hint', authenticateToken, async (req, res) => {
-    await recordScoreEvent(req.user?.id, 'broker_hint', -50);
-    io.emit('score_event', { message: `[INFORMATION BROKER] ${req.user?.name} sacrificed 50 PTS to intercept an encrypted clue.` });
-    res.json({ success: true, hint: "The gap in the timeline is exactly 11 minutes." });
+    try {
+        const updatedScore = await recordScoreEvent(req.user?.id, 'broker_hint', -50);
+        io.emit('score_event', { message: `[INFORMATION BROKER] ${req.user?.name} sacrificed 50 PTS to intercept an encrypted clue.` });
+        res.json({ success: true, score: updatedScore, hint: "The gap in the timeline is exactly 11 minutes." });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message || 'Failed to record score' });
+    }
 });
 app.post('/api/blackmarket/buy', authenticateToken, async (req, res) => {
     const { item, targetTeam } = req.body;
-    await recordScoreEvent(req.user?.id, 'blackmarket_buy', -50, { item, targetTeam });
-    io.emit('sabotage', { target: targetTeam, by: req.user?.name, item });
-    io.emit('score_event', { message: `[BLACK MARKET] ${targetTeam} was hit by a sensory disruption attack!` });
-    res.json({ success: true });
+    if (!item || !targetTeam)
+        return res.status(400).json({ error: 'Item and target team required' });
+    try {
+        const updatedScore = await recordScoreEvent(req.user?.id, 'blackmarket_buy', -50, { item, targetTeam });
+        io.emit('sabotage', { target: targetTeam, by: req.user?.name, item });
+        io.emit('score_event', { message: `[BLACK MARKET] ${targetTeam} was hit by a sensory disruption attack!` });
+        res.json({ success: true, score: updatedScore });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message || 'Failed to record score' });
+    }
 });
 app.post('/api/r0/submit', authenticateToken, async (req, res) => {
     const task = req.body.task;
     let msg = `${req.user?.name} completed Round 0 Diagnostic: ${task}.`;
-    if (task && !globalFirstSolves.has(`r0_${task}`)) {
-        globalFirstSolves.add(`r0_${task}`);
-        await recordScoreEvent(req.user?.id, 'round0_first_solve', 50, { task });
-        msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to connect: ${task}! (+50 Pts)`;
+    try {
+        if (task &&
+            !globalFirstSolves.has(`r0_${task}`) &&
+            !(await hasGlobalScoreEvent('round0_first_solve', { task }))) {
+            globalFirstSolves.add(`r0_${task}`);
+            await recordScoreEvent(req.user?.id, 'round0_first_solve', 50, { task });
+            msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to connect: ${task}! (+50 Pts)`;
+        }
+        io.emit('score_event', { message: msg });
+        res.json({ success: true });
     }
-    io.emit('score_event', { message: msg });
-    res.json({ success: true });
+    catch (err) {
+        res.status(500).json({ error: err.message || 'Failed to record score' });
+    }
 });
 app.post('/api/r1/claim', authenticateToken, async (req, res) => {
     const code = req.body.code;
     let msg = `${req.user?.name} recovered a new evidence fragment in ARCHIVE.`;
-    if (code && !globalFirstSolves.has(`r1_${code}`)) {
-        globalFirstSolves.add(`r1_${code}`);
-        await recordScoreEvent(req.user?.id, 'round1_first_solve', 50, { code });
-        msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to extract evidence ${code}! (+50 Pts)`;
+    try {
+        if (code &&
+            !globalFirstSolves.has(`r1_${code}`) &&
+            !(await hasGlobalScoreEvent('round1_first_solve', { code }))) {
+            globalFirstSolves.add(`r1_${code}`);
+            await recordScoreEvent(req.user?.id, 'round1_first_solve', 50, { code });
+            msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to extract evidence ${code}! (+50 Pts)`;
+        }
+        io.emit('score_event', { message: msg });
+        res.json({ success: true });
     }
-    io.emit('score_event', { message: msg });
-    res.json({ success: true });
+    catch (err) {
+        res.status(500).json({ error: err.message || 'Failed to record score' });
+    }
 });
 // Login Rate Limiter (Simple in-memory for preview)
 const loginAttempts = new Map();
