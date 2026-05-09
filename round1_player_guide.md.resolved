@@ -1,0 +1,270 @@
+# 🗄️ PHASE 1: DATABASE BREACH
+## OPERATIVE FIELD GUIDE — READ BEFORE ENTERING THE NETWORK
+
+> **CLASSIFICATION: OPERATIVE USE ONLY**
+> *You have successfully restored system access. You are now inside the network. Here's what to do next.*
+
+---
+
+## 📋 MISSION BRIEFING
+
+The police closed Priya's case in 48 hours. They said she died of a cardiac arrest during an electrical storm. They said her data was lost in a power surge.
+
+**Your job:** Prove they are lying.
+
+You have access to the company's internal database. Cross-reference it against the official police report. Find the 5 contradictions the police ignored. Every query you run is one step closer to the truth.
+
+---
+
+## 👥 WHO DOES WHAT IN THIS ROUND
+
+### 🟢 FIELD AGENT (1st Year) — You are the Schema Analyst
+Your screen shows the **Database Schema Panel** — a reference map of every table and column in the database.
+
+**Your job is to:**
+- Read and memorize the table names and column names
+- Study the official police report carefully (on the left side of your screen)
+- Tell your Intel Officer **which table to query** and **what value to filter by**
+- Spot the contradictions between what the report claims and what the database shows
+
+> ⚠️ You CANNOT type SQL queries. Your partner controls the terminal. You are the analyst — they are the operator.
+
+---
+
+### 🔵 INTEL OFFICER (2nd Year) — You are the Terminal Operator
+Your screen shows a **live terminal** where you can type commands.
+
+**Your job is to:**
+- Navigate the file system to find the database gateway
+- Launch the SQL terminal
+- Run queries that your Field Agent directs you to
+- Read the results back to your partner
+
+> ⚠️ Your partner sees the database structure and the report. You see the terminal. Talk constantly.
+
+---
+
+## 🖥️ THE TWO SCREENS SIDE BY SIDE
+
+| What Field Agent sees | What Intel Officer sees |
+|---|---|
+| 📄 Official Police Report (left panel) | 🖥️ Live Terminal (right panel) |
+| 🗂️ All table names + column types | ⌨️ SQL query input box |
+| ✅ Discovered Contradictions list | 📊 Query results rendered as tables |
+| 📊 Evidence counter (X / 5) | 💡 Autocomplete suggestions |
+
+---
+
+## ⚙️ HOW TO GET STARTED (Intel Officer — Step by Step)
+
+When you first load Round 1, you are in a **system shell** (like a Linux terminal). You need to navigate to the database gateway and launch it. Follow these exact steps:
+
+### Step 1 — Check where you are
+```bash
+pwd
+```
+This shows your current location. You should see: `/`
+
+---
+
+### Step 2 — List the files in the current folder
+```bash
+ls
+```
+You'll see folders like `home`, `etc`, `var`, `opt`.
+
+---
+
+### Step 3 — Navigate to the admin folder
+```bash
+cd home
+ls
+cd admin
+ls
+```
+You should now see two files: `db_connect.sh` and `notes.txt`
+
+---
+
+### Step 4 — (Optional) Read the note
+```bash
+cat notes.txt
+```
+This gives you a hint about what to do next.
+
+---
+
+### Step 5 — Launch the SQL database gateway
+```bash
+./db_connect.sh
+```
+You will see a connection message confirming you are now in **SQL mode**. The prompt changes from `admin@ttos:/home/admin$` to `TT_SQL>` — this means you're in!
+
+---
+
+## 🧮 SQL COMMANDS — COMPLETE REFERENCE
+
+Once you are in SQL mode (after running `./db_connect.sh`), you can type the following commands:
+
+---
+
+### 📋 List all available tables
+```sql
+SHOW TABLES;
+```
+This shows you every table you can query.
+
+---
+
+### 🔍 Inspect a table's columns
+```sql
+DESCRIBE table_name;
+```
+Example:
+```sql
+DESCRIBE weather_reports;
+```
+This shows you what columns exist in that table and what type of data they hold.
+
+---
+
+### 📊 Get all data from a table
+```sql
+SELECT * FROM table_name;
+```
+Example:
+```sql
+SELECT * FROM weather_reports;
+```
+This returns every row of data in that table.
+
+---
+
+### 🎯 Filter data with a condition
+```sql
+SELECT * FROM table_name WHERE column_name = 'value';
+```
+Example:
+```sql
+SELECT * FROM weather_reports WHERE date = '2026-04-12';
+```
+This returns only rows where the `date` column equals `2026-04-12`.
+
+> 💡 **Always put text values in single quotes `' '`**
+> Numbers do NOT need quotes.
+
+---
+
+### 🔎 Search with partial match (LIKE)
+```sql
+SELECT * FROM table_name WHERE column_name LIKE '%partial_value%';
+```
+The `%` symbol is a wildcard. It matches anything before or after your search term.
+
+Example:
+```sql
+SELECT * FROM police_financials WHERE officer_name LIKE '%Varma%';
+```
+This returns all rows where the officer's name contains "Varma".
+
+---
+
+### 🚪 Exit SQL mode and return to the shell
+```sql
+EXIT;
+```
+
+---
+
+## 🗂️ THE 5 TABLES — WHAT THEY CONTAIN
+
+| Table Name | What It Stores | Columns |
+|---|---|---|
+| `weather_reports` | IMD weather data | date, location, precipitation_mm, status |
+| `ip_registry` | IP address ownership records | ip_address, organization, location |
+| `police_financials` | Financial records of police officers | officer_name, date, amount_inr, sender |
+| `access_logs` | Building entry/exit records | employee, entry_time, exit_time, zone |
+| `phone_records` | Call and SMS history | caller, receiver, time, duration_sec, type, content |
+
+---
+
+## 🎯 YOUR 5 OBJECTIVES
+
+You must find **5 contradictions** hidden in the database by comparing it against the official report. The report claims specific things about the case — the database will tell a different story.
+
+Here is what you are looking for (no answers given — find them yourself!):
+
+| # | Objective | Which Table to Check | What the Report Claims |
+|---|---|---|---|
+| 1 | **Weather** | `weather_reports` | There was an electrical storm on April 12 |
+| 2 | **IP Address** | `ip_registry` | The data loss was caused by an internal power surge |
+| 3 | **Bribery** | `police_financials` | The investigating officer is financially clean |
+| 4 | **Server Access** | `access_logs` | No one accessed the server room that night |
+| 5 | **Phone Evidence** | `phone_records` | The CEO had no contact with the IT department |
+
+When you run a query that reveals a contradiction, it will automatically be added to the **"Discovered Contradictions"** panel on the left. You will see it turn green!
+
+---
+
+## 💬 HOW TO WORK AS A TEAM (Sample Dialogue)
+
+Here is an example of how you and your partner should communicate during this round:
+
+> **Field Agent:** "I can see a table called `police_financials`. The columns are `officer_name`, `date`, `amount_inr`, and `sender`."
+>
+> **Intel Officer:** "What should I query?"
+>
+> **Field Agent:** "Type: `SELECT * FROM police_financials;` — let's see all the financial records first."
+>
+> **Intel Officer:** "Done — I see 3 rows. One of them shows a very large amount from a sender called `Offshore_Acc_77492`."
+>
+> **Field Agent:** "That's suspicious! Now filter by the officer's name — query the officer mentioned in the report."
+>
+> **Intel Officer:** "Running it now..."
+
+---
+
+## 🛑 COMMON MISTAKES TO AVOID
+
+| Mistake | How to Fix |
+|---|---|
+| Forgetting quotes around text values | Write `WHERE name = 'Varma'` not `WHERE name = Varma` |
+| Using the wrong table name | Use `SHOW TABLES` to confirm exact table names |
+| Using the wrong column name | Use `DESCRIBE table_name` before querying |
+| Typing in SQL mode before launching `./db_connect.sh` | You must be in `/home/admin` and run `./db_connect.sh` first |
+| Running `./db_connect.sh` from the wrong folder | Use `pwd` to confirm you're in `/home/admin` |
+| Not finding any evidence despite correct query | Evidence only unlocks on **specific filter values** — ask your partner which exact value to search for |
+
+---
+
+## 💡 PRO TIPS
+
+1. **Always DESCRIBE before SELECT.** Knowing the exact column names before writing a WHERE clause prevents typos that waste time.
+
+2. **The Field Agent leads.** The Intel Officer has the terminal but the Field Agent has the schema and the report. The Field Agent should be directing every query — they know what to look for.
+
+3. **Read the official report carefully.** Every claim it makes is either true or provably false. The date April 12, 2026 is the key date. Focus your queries on that date.
+
+4. **One query at a time.** Don't rush to type the next command before your partner has read and analysed the results on their screen.
+
+5. **If a query returns `0 rows returned` — that IS the clue.** Sometimes finding nothing is the evidence.
+
+6. **Use Tab to autocomplete.** While typing in SQL mode, press Tab after the first few letters of a table or column name to auto-complete it.
+
+---
+
+## 🏁 HOW TO COMPLETE THIS ROUND
+
+Find all **5 contradictions**. When all 5 evidence cards appear in the left panel and the counter shows `5 / 5`, your evidence package is complete.
+
+The left panel will show:
+```
+✅ All 5 Evidence Links Established.
+```
+
+This means you have built a solid case. You are ready to proceed to **Phase 2: Newsroom Infiltration**.
+
+---
+
+*PHASE 1 FIELD GUIDE // ARCHIVE INTELLIGENCE DIVISION*
+*Do not leave this document unattended*

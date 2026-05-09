@@ -493,7 +493,7 @@ export function Round2Page() {
     "r2_removed",
     [],
   );
-  const [entities, setEntities] = useState<Entity[]>(INITIAL_ENTITIES);
+  const [entities, setEntities] = useSharedState<Entity[]>("r2_entities", INITIAL_ENTITIES);
 
   // Compute true entities
   const displayEntities = entities.filter(
@@ -595,6 +595,7 @@ export function Round2Page() {
   }, [displayEntities, playerPos, setPlayerPos, isIntel]);
 
   useEffect(() => {
+    if (isIntel) return; // ONLY the Field Agent processes the game loop to prevent double-updates and drift
     const interval = setInterval(() => {
       setEntities((prev) =>
         prev.map((e) => {
@@ -627,7 +628,7 @@ export function Round2Page() {
       );
     }, 1000);
     return () => clearInterval(interval);
-  }, [activeLure]);
+  }, [activeLure, isIntel, setEntities]);
 
   useEffect(() => {
     checkGuardCollision();

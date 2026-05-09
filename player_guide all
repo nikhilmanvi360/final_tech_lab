@@ -1,0 +1,249 @@
+# 🕵️ OPERATION: RED THREAD
+## PLAYER FIELD GUIDE — CLASSIFIED BRIEFING DOCUMENT
+
+> **FOR OPERATIVE USE ONLY // DO NOT DISCLOSE TO UNAUTHORIZED PERSONNEL**
+> *Read this carefully before the operation begins. Your mission depends on it.*
+
+---
+
+## 📖 THE STORY
+
+Investigative journalist **Priya Singh** was found dead in her apartment. Authorities ruled it a natural cardiac arrest and closed the case within 48 hours.
+
+Intelligence sources disagree.
+
+Priya was working on a story that could bring down a powerful corporation. Her data was wiped. Her story was buried. Her killers are still free.
+
+**Your team's mission:** Infiltrate the company network, recover deleted evidence, and piece together the final 11 minutes of her life.
+
+---
+
+## 👥 YOUR TEAM (READ THIS FIRST!)
+
+You and your partner are NOT playing the same game. You each have **different abilities** and **see different things** on your screens. This is intentional.
+
+> ⚠️ **The most important rule of this game is: TALK TO EACH OTHER.**
+> You cannot win alone. You will need to describe what you see, ask questions, and coordinate every step.
+
+### 🟢 FIELD AGENT (1st Year Student)
+You are the one on the ground — the infiltrator. You have the technical skills to run raw code and navigate the physical space.
+
+**What you can do:**
+- ✅ Execute **Python** code in the terminal
+- ✅ Move your character around the **2D map** (WASD / Arrow Keys)
+- ✅ Physically pick up items and interact with objects
+- ❌ Cannot use the HTML/CSS editor (your partner handles this)
+- ❌ Cannot see security bots on the map (your partner must warn you!)
+
+---
+
+### 🔵 INTEL OFFICER (2nd Year Student)
+You are the overwatch — the analyst. You have high-level access to structural systems and databases.
+
+**What you can do:**
+- ✅ Edit **HTML** and **CSS** code in the editor
+- ✅ Run **SQL queries** on the case database (Round 1)
+- ✅ See **Sec-Bots** and their patrol routes on the map — warn your Field Agent!
+- ✅ Solve hacking minigames that appear when terminals are accessed
+- ❌ Cannot move the player character on the map
+- ❌ Cannot execute Python code
+
+---
+
+## 🖥️ YOUR SCREEN — WHAT EVERYTHING MEANS
+
+When you log in, you'll see the main game interface. Here's what's on screen:
+
+| Element | What It Does |
+|---|---|
+| **Top Bar — OPERATION TIME** | Countdown timer for the operation |
+| **Top Bar — ACTIVE OPERATIVES** | Shows if your partner is connected |
+| **Top Bar — YOUR IDENTITY** | Shows your team name and your role |
+| **Top Bar — TEAM SCORE** | Your team's current live score |
+| **/// LIVE FEED ///** | Global event log — team actions, score updates broadcast here |
+| **SYS_TERMINAL** | Global override command box at the very top |
+| **HELP button** | Click this anytime to view controls |
+| **DISCONNECT button** | Logs you out |
+
+---
+
+## 🚀 THE FOUR ROUNDS
+
+The operation is split into **4 phases**. You must complete them in order.
+
+---
+
+### ⚙️ PHASE 0: DIAGNOSTICS (~30 minutes)
+**Goal:** The company's systems are corrupted. Restore access before you can proceed.
+
+There are **3 tasks** in this phase. Each task is restricted to one role:
+- **Task 1 (HTML)** → Intel Officer only
+- **Task 2 (CSS)** → Intel Officer only
+- **Task 3 (Python)** → Field Agent only
+
+**How it works:**
+1. The active player sees a code editor with broken code.
+2. Read the description and the hint carefully.
+3. Fix the code in the editor.
+4. Click **"Execute & Verify"** to check your answer.
+5. If correct, you unlock the next task.
+
+💡 **While the Intel Officer works, the Field Agent should use idle time to complete the Discrete Mathematics Quiz** visible on their screen — each correct answer earns bonus points for your team!
+
+---
+
+### 🗄️ PHASE 1: DATABASE BREACH (~60 minutes)
+**Goal:** Cross-reference the official police report against the real database records.
+
+You are looking at the database of **Sundaram Infrastructure**. There are **contradictions** hidden in the data — the official story doesn't match the logs.
+
+**How it works:**
+- The Intel Officer runs **SQL queries** to extract data from multiple database tables.
+- Each query reveals a fragment of evidence.
+- The Field Agent reads the case files and identifies what doesn't match.
+
+**Basic SQL Commands you'll need:**
+```sql
+-- See all data in a table:
+SELECT * FROM table_name;
+
+-- Filter by a specific value:
+SELECT * FROM table_name WHERE column = 'value';
+```
+
+You will be querying tables like `weather_reports`, `ip_registry`, `access_logs`, `phone_records`, and `police_financials`. Read the post-mortem report carefully and look for things that don't add up.
+
+---
+
+### 🗺️ PHASE 2: NEWSROOM INFILTRATION (~120 minutes)
+**Goal:** Physically infiltrate the building, talk to witnesses, and hack terminals to recover 7 pieces of evidence.
+
+This is the longest and most complex round. The Field Agent navigates a 2D top-down map of the building.
+
+**How to move (Field Agent):**
+- `W` / `↑` — Move Up
+- `S` / `↓` — Move Down
+- `A` / `←` — Move Left
+- `D` / `→` — Move Right
+- `E` — Interact (talk to NPCs, hack terminals, pick up items)
+
+**What you're looking for:**
+- 🟡 **NPCs** (yellow figures) — Witnesses you can talk to. Choose your dialogue carefully.
+- 🖥️ **Terminals** (blue screens) — Computers you can hack for evidence.
+- 🔑 **Items** (gold icons) — Keycards and badges you can pick up. You need these to open locked doors.
+- 🚪 **Doors** — Some require specific keycards. Check your inventory!
+- 🤖 **Sec-Bots** (red, moving) — **DANGER!** If you walk into a Sec-Bot, you get caught and reset. The Intel Officer can see them — communicate!
+- ⚡ **Lasers** — Blocked paths that can only be disabled by the Intel Officer stepping on a pressure plate.
+
+**How hacking terminals works:**
+1. Field Agent walks up to a terminal and presses `E`.
+2. A hacking minigame appears for the **Intel Officer** to solve.
+3. Once the minigame is solved, the Field Agent can use the terminal's file system.
+4. Use these commands in the terminal:
+   - `ls` — List files and folders
+   - `cd foldername` — Enter a folder
+   - `cat filename.txt` — Read a file (this is how you get evidence!)
+5. Find the right file to extract the evidence clue.
+
+**The building has 6 zones:**
+- **Zone A: Newsroom** — Where Priya worked. Start here.
+- **Zone B: IT Room** — Locked. Find a badge to get in.
+- **Zone C: Editor's Office** — Speak to the Editor. She knows something.
+- **Zone D: Archive Vault** — Locked. Critical evidence is here.
+- **Zone E: Executive Suite** — The CEO's private office. Heavily guarded.
+- **Zone F: Underground Garage** — Hidden footage is stored here.
+
+**💡 Co-op Mechanics:**
+- **Lure:** The Field Agent can activate an alarm (press `E` on a Fire Alarm panel) to distract nearby Sec-Bots. This gives you a short window to sneak past!
+- **Laser override:** The Intel Officer can step on a pressure plate to temporarily disable a laser barrier, letting the Field Agent pass.
+
+---
+
+### 📋 PHASE 3: FINAL VERDICT (~30 minutes)
+**Goal:** Compile your evidence into an official dossier and transmit it.
+
+This is the final showdown. You have recovered all the clues — now you must make sense of them.
+
+**Phase A — Timeline (Field Agent)**
+You will be given ~12 evidence cards. Select **5 of them in the correct chronological order** to reconstruct the exact sequence of events leading to Priya's death. The cards describe events with timestamps. Read them carefully and put them in the right order.
+
+**Phase B — Official Assessment (Intel Officer)**
+You will be asked **3 multiple choice questions** about the case. Use the evidence you gathered throughout the game to answer correctly. You MUST answer all 3 before you can submit.
+
+**Phase C — Breach Protocol (Both)**
+The final hacking sequence. A grid of hexadecimal codes appears on screen. You must click a specific pattern of codes to transmit the final evidence package and complete the operation.
+
+---
+
+## ⭐ SCORING SYSTEM
+
+Your team earns points throughout the game:
+
+| Action | Points |
+|---|---|
+| Completing Phase 0 tasks | Points awarded per task |
+| First Blood — being the FIRST team to collect a clue | +50 PTS bonus |
+| Math Quiz (Field Agent) | Points per correct answer |
+| Completing rounds | Phase completion bonus |
+
+> 💡 **Speed matters!** The first team to collect each piece of evidence gets a "First Blood" bonus, so move efficiently!
+
+---
+
+## 💰 SPECIAL GAME MECHANICS
+
+### Information Broker
+If your team is completely stuck, you can access the **Black Market** from the navigation menu and purchase a hint. This will cost your team points, so use it wisely!
+
+### Black Market Sabotage
+From the Black Market, you can also spend points to disrupt another team's experience (e.g., distort their screen temporarily). This is optional and purely strategic.
+
+---
+
+## ⚠️ CRITICAL RULES
+
+1. **DO NOT share your screen** with other teams. You have information they don't — that's the point.
+2. **Verbal communication is mandatory** between you and your partner. You MUST describe what you see on your screen.
+3. **If your screen says "ACCESS DENIED"**, it means only your partner can do that action. Tell them what you need.
+4. **If you get caught by a Sec-Bot**, your character resets to the start of the map. Keep your Intel Officer on overwatch duty!
+5. **Do not refresh the page** mid-round — you may lose your progress.
+6. **Only one player navigates the map at a time** — the Field Agent controls movement while the Intel Officer watches from above.
+
+---
+
+## 🚨 GETTING STARTED CHECKLIST
+
+Before the operation begins, confirm with your partner:
+
+- [ ] We know who is the **Field Agent** and who is the **Intel Officer**
+- [ ] We are both logged in with our team credentials
+- [ ] We can see **each other's names** in the "Active Operatives" section at the top
+- [ ] We have a way to talk to each other verbally (in-person or voice call)
+- [ ] We understand we are NOT looking at the same screens
+
+---
+
+## 🧭 QUICK REFERENCE
+
+| You need to... | Who does it |
+|---|---|
+| Fix HTML code | Intel Officer |
+| Fix CSS code | Intel Officer |
+| Run Python code | Field Agent |
+| Do the Maths Quiz | Field Agent |
+| Run SQL queries | Intel Officer |
+| Move on the map | Field Agent |
+| Solve terminal minigames | Intel Officer |
+| Pick up keycards | Field Agent |
+| Warn about Sec-Bots | Intel Officer |
+| Sort the timeline (Phase 3A) | Field Agent |
+| Answer the verdict questions (Phase 3B) | Intel Officer |
+| Complete the Breach Protocol (Phase 3C) | Both together |
+
+---
+
+*GOOD LUCK, OPERATIVES.*
+*Priya's story ends when you say it does.*
+
+---
+*OPERATION: RED THREAD // CLASSIFIED // DESTROY AFTER READING*
