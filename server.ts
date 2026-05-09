@@ -155,38 +155,48 @@ const recordScoreEvent = async (
 ) => {
   if (!teamId) return null;
 
-  const { error } = await supabase.from('score_events').insert([
-    {
-      team_id: teamId,
-      event_type: eventType,
-      points,
-      metadata,
-    },
+  // Insert score event log
+  const { error: insertError } = await supabase.from('score_events').insert([
+    { team_id: teamId, event_type: eventType, points, metadata },
   ]);
 
-  if (error) {
-    console.error('Failed to record score event:', error.message);
-    throw error;
+  if (insertError) {
+    console.error('Failed to record score event:', insertError.message);
+    throw insertError;
   }
 
-  const { data: team, error: scoreError } = await supabase
+  // Increment the team's score in the teams table
+  const { data: currentTeam, error: fetchError } = await supabase
     .from('teams')
     .select('name, score')
     .eq('id', teamId)
     .single();
 
-  if (scoreError) {
-    console.error('Failed to fetch updated score:', scoreError.message);
+  if (fetchError || !currentTeam) {
+    console.error('Failed to fetch team for score update:', fetchError?.message);
     return null;
   }
 
+  const newScore = (currentTeam.score || 0) + points;
+
+  const { error: updateError } = await supabase
+    .from('teams')
+    .update({ score: newScore })
+    .eq('id', teamId);
+
+  if (updateError) {
+    console.error('Failed to update team score:', updateError.message);
+    return null;
+  }
+
+  // Broadcast the updated score to all connected clients
   io.emit('team_score_update', {
     teamId,
-    teamName: team.name,
-    score: team.score,
+    teamName: currentTeam.name,
+    score: newScore,
   });
 
-  return team.score;
+  return newScore;
 };
 
 const hasScoreEvent = async (
