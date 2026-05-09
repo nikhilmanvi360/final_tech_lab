@@ -215,6 +215,10 @@ export function Round1Page() {
     },
     "/var": { type: "dir", contents: [] },
     "/opt": { type: "dir", contents: [] },
+    "/home/admin/db_connect.sh": {
+      type: "exec",
+      output: "Connecting to TT_OS DB_ENGINE...\nAuthenticated as tt_sys (read-only)\nWelcome to TT_OS SQL Gateway v3.2.1\n\nType SHOW TABLES to list available tables.\nType DESCRIBE <table> to inspect columns.\nType SELECT * FROM <table> to query.\nType EXIT to disconnect."
+    },
   };
 
   const resolvePath = (path: string) => {
@@ -303,7 +307,7 @@ export function Round1Page() {
           if (cwd !== "/home/admin") {
             result = "bash: ./db_connect.sh: No such file or directory";
           } else {
-            result = FS["/home/admin/db_connect.sh"].output;
+            result = FS["/home/admin/db_connect.sh"]?.output || "Connecting to TT_OS DB_ENGINE... Connected.";
             type = "info";
             setInSql(true);
           }
@@ -492,12 +496,12 @@ export function Round1Page() {
                   addEvidence("EVIDENCE_BRIBE", "Bribe Found", "Inspector R. Varma received ₹800,000 from an offshore account.");
                 if (
                   tableName === "access_logs" &&
-                  hasEvidenceMatch("SERVER_ROOM")
+                  (hasEvidenceMatch("SERVER_ROOM") || hasEvidenceMatch("SERVER ROOM"))
                 )
-                  addEvidence("EVIDENCE_SERVER", "Insider Access", "R. Dasgupta entered Server Room shortly after Priya's exit.");
+                  addEvidence("EVIDENCE_SERVER", "Insider Access", "R. Dasgupta entered the Server Room at 02:58 AM — immediately before the remote wipe.");
                 if (
                   tableName === "phone_records" &&
-                  hasEvidenceMatch("V. SUNDARAM")
+                  (hasEvidenceMatch("V. SUNDARAM") || hasEvidenceMatch("V.SUNDARAM") || hasEvidenceMatch("V%SUNDARAM"))
                 )
                   addEvidence("EVIDENCE_PHONE", "Collusion", "V. Sundaram called R. Dasgupta 15 mins before the remote wipe.");
               }
