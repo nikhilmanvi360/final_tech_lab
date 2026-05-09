@@ -21,14 +21,6 @@ export function AdminRound3() {
         />
       </div>
 
-      <div className="bg-black/50 border border-border p-6">
-        <h2 className="text-lg font-bold text-gold uppercase mb-4">Server Controls</h2>
-        <div className="flex gap-4">
-          <button className="bg-border text-white px-6 py-2 border border-border hover:bg-gold hover:text-black transition uppercase font-bold">Trigger Monologue</button>
-          <button className="bg-border text-white px-6 py-2 border border-border hover:bg-green-500 transition uppercase font-bold">Start Challenge</button>
-          <button className="bg-red-900 border border-red-500 text-red-100 px-6 py-2 hover:bg-red-800 transition uppercase font-bold">Trigger Final Reveal</button>
-        </div>
-      </div>
     </div>
   );
 }

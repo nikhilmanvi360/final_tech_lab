@@ -26,13 +26,51 @@ app.use(cookieParser());
 // --- Multiplayer Sync ---
 const teamStates = new Map<string, any>();
 
+const getCookieValue = (cookieHeader: string | undefined, name: string) => {
+  if (!cookieHeader) return null;
+
+  const cookies = cookieHeader.split(';').map(cookie => cookie.trim());
+  const cookie = cookies.find(cookie => cookie.startsWith(`${name}=`));
+  if (!cookie) return null;
+
+  return decodeURIComponent(cookie.slice(name.length + 1));
+};
+
+const getSocketToken = (socket: any) => {
+  const authToken = socket.handshake.auth?.token;
+  if (authToken) return authToken;
+
+  return getCookieValue(socket.handshake.headers.cookie, 'tech_detective_token');
+};
+
+const verifySocketUser = (socket: any) => {
+  const token = getSocketToken(socket);
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, JWT_SECRET) as any;
+  } catch {
+    return null;
+  }
+};
+
 io.on('connection', (socket) => {
-  socket.on('join_team', async ({ teamName, role }) => {
+  console.log('Client connected:', socket.id);
+
+  socket.on('join_team', async ({ role }) => {
+    const user = verifySocketUser(socket);
+    if (!user?.name) {
+      socket.emit('auth_error', { error: 'Unauthorized socket connection' });
+      socket.disconnect(true);
+      return;
+    }
+
+    const teamName = user.name;
     socket.join(teamName);
-    socket.data = { teamName, role };
+    socket.data = { teamName, role: role || 'Unknown Operative', userId: user.id };
     const sockets = await io.in(teamName).fetchSockets();
     io.to(teamName).emit('team_status', {
-      message: `${role} joined the session.`,
+      message: `${socket.data.role} joined the session.`,
       activeRoles: sockets.map(s => s.data.role)
     });
     
@@ -43,7 +81,7 @@ io.on('connection', (socket) => {
 
   socket.on('update_state', ({ key, value }) => {
     const teamName = socket.data.teamName;
-    if (!teamName) return;
+    if (!teamName || typeof key !== 'string') return;
     
     const state = teamStates.get(teamName) || {};
     state[key] = value;
@@ -54,6 +92,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', async () => {
+    console.log('Client disconnected:', socket.id);
     const teamName = socket.data.teamName;
     if (teamName) {
       const sockets = await io.in(teamName).fetchSockets();
@@ -108,6 +147,28 @@ let activeInterceptCode: string | null = null;
 let currentMultiplier = 1;
 const teamStrikes = new Map<string, { strikes: number, lockedUntil: number }>();
 
+const recordScoreEvent = async (
+  teamId: number | undefined,
+  eventType: string,
+  points: number,
+  metadata: Record<string, any> = {},
+) => {
+  if (!teamId || points === 0) return;
+
+  const { error } = await supabase.from('score_events').insert([
+    {
+      team_id: teamId,
+      event_type: eventType,
+      points,
+      metadata,
+    },
+  ]);
+
+  if (error) {
+    console.error('Failed to record score event:', error.message);
+  }
+};
+
 // Simulate Adversary Events
 setInterval(() => {
   if (!activeInterceptCode && Math.random() > 0.4) {
@@ -116,10 +177,11 @@ setInterval(() => {
   }
 }, 45000);
 
-app.post('/api/systems/win', authenticateToken, (req, res) => {
+app.post('/api/systems/win', authenticateToken, async (req, res) => {
   const { score } = req.body;
   if (score && score > 0) {
     const points = score * 10;
+    await recordScoreEvent(req.user?.id, 'math_assessment', points, { score });
     io.emit('score_event', { message: `[DIAGNOSTIC] ${req.user?.name} scored ${score} on Math Assessment (+${points} PTS)` });
   } else {
     io.emit('score_event', { message: `[SYSTEM] ${req.user?.name} has authorized a system override.` });
@@ -230,9 +292,11 @@ app.delete('/api/admin/teams/:id', authenticateToken, requireAdmin, async (req, 
   }
 });
 
-app.post('/api/terminal/execute', authenticateToken, (req, res) => {
+app.post('/api/terminal/execute', authenticateToken, async (req, res) => {
   const { command } = req.body;
   if (activeInterceptCode && command === activeInterceptCode) {
+     const points = 100 * currentMultiplier;
+     await recordScoreEvent(req.user?.id, 'defuse_breach', points, { command });
      io.emit('score_event', { message: `[DEFENSE SUCCESS] ${req.user?.name} neutralized the breach! (+${100 * currentMultiplier} PTS)` });
      activeInterceptCode = null;
      return res.json({ success: true, message: 'Intercept successful!' });
@@ -240,35 +304,38 @@ app.post('/api/terminal/execute', authenticateToken, (req, res) => {
   res.status(400).json({ error: 'Command unrecognized or expired.' });
 });
 
-app.post('/api/broker/hint', authenticateToken, (req, res) => {
-  // Simulates deducting points for a hint
+app.post('/api/broker/hint', authenticateToken, async (req, res) => {
+  await recordScoreEvent(req.user?.id, 'broker_hint', -50);
   io.emit('score_event', { message: `[INFORMATION BROKER] ${req.user?.name} sacrificed 50 PTS to intercept an encrypted clue.` });
   res.json({ success: true, hint: "The gap in the timeline is exactly 11 minutes." });
 });
 
-app.post('/api/blackmarket/buy', authenticateToken, (req, res) => {
+app.post('/api/blackmarket/buy', authenticateToken, async (req, res) => {
   const { item, targetTeam } = req.body;
+  await recordScoreEvent(req.user?.id, 'blackmarket_buy', -50, { item, targetTeam });
   io.emit('sabotage', { target: targetTeam, by: req.user?.name, item });
   io.emit('score_event', { message: `[BLACK MARKET] ${targetTeam} was hit by a sensory disruption attack!` });
   res.json({ success: true });
 });
 
-app.post('/api/r0/submit', authenticateToken, (req, res) => {
+app.post('/api/r0/submit', authenticateToken, async (req, res) => {
   const task = req.body.task;
   let msg = `${req.user?.name} completed Round 0 Diagnostic: ${task}.`;
   if (task && !globalFirstSolves.has(`r0_${task}`)) {
     globalFirstSolves.add(`r0_${task}`);
+    await recordScoreEvent(req.user?.id, 'round0_first_solve', 50, { task });
     msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to connect: ${task}! (+50 Pts)`;
   }
   io.emit('score_event', { message: msg });
   res.json({ success: true });
 });
 
-app.post('/api/r1/claim', authenticateToken, (req, res) => {
+app.post('/api/r1/claim', authenticateToken, async (req, res) => {
   const code = req.body.code;
   let msg = `${req.user?.name} recovered a new evidence fragment in ARCHIVE.`;
   if (code && !globalFirstSolves.has(`r1_${code}`)) {
     globalFirstSolves.add(`r1_${code}`);
+    await recordScoreEvent(req.user?.id, 'round1_first_solve', 50, { code });
     msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to extract evidence ${code}! (+50 Pts)`;
   }
   io.emit('score_event', { message: msg });
@@ -355,15 +422,6 @@ app.get('/api/auth/me', async (req, res) => {
     } catch (dbErr: any) {
       res.json({ team: user });
     }
-  });
-});
-
-
-// Socket.IO
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
   });
 });
 

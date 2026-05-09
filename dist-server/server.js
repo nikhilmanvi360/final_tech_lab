@@ -20,13 +20,47 @@ app.use(express.json());
 app.use(cookieParser());
 // --- Multiplayer Sync ---
 const teamStates = new Map();
+const getCookieValue = (cookieHeader, name) => {
+    if (!cookieHeader)
+        return null;
+    const cookies = cookieHeader.split(';').map(cookie => cookie.trim());
+    const cookie = cookies.find(cookie => cookie.startsWith(`${name}=`));
+    if (!cookie)
+        return null;
+    return decodeURIComponent(cookie.slice(name.length + 1));
+};
+const getSocketToken = (socket) => {
+    const authToken = socket.handshake.auth?.token;
+    if (authToken)
+        return authToken;
+    return getCookieValue(socket.handshake.headers.cookie, 'tech_detective_token');
+};
+const verifySocketUser = (socket) => {
+    const token = getSocketToken(socket);
+    if (!token)
+        return null;
+    try {
+        return jwt.verify(token, JWT_SECRET);
+    }
+    catch {
+        return null;
+    }
+};
 io.on('connection', (socket) => {
-    socket.on('join_team', async ({ teamName, role }) => {
+    console.log('Client connected:', socket.id);
+    socket.on('join_team', async ({ role }) => {
+        const user = verifySocketUser(socket);
+        if (!user?.name) {
+            socket.emit('auth_error', { error: 'Unauthorized socket connection' });
+            socket.disconnect(true);
+            return;
+        }
+        const teamName = user.name;
         socket.join(teamName);
-        socket.data = { teamName, role };
+        socket.data = { teamName, role: role || 'Unknown Operative', userId: user.id };
         const sockets = await io.in(teamName).fetchSockets();
         io.to(teamName).emit('team_status', {
-            message: `${role} joined the session.`,
+            message: `${socket.data.role} joined the session.`,
             activeRoles: sockets.map(s => s.data.role)
         });
         // Send current state
@@ -35,7 +69,7 @@ io.on('connection', (socket) => {
     });
     socket.on('update_state', ({ key, value }) => {
         const teamName = socket.data.teamName;
-        if (!teamName)
+        if (!teamName || typeof key !== 'string')
             return;
         const state = teamStates.get(teamName) || {};
         state[key] = value;
@@ -44,6 +78,7 @@ io.on('connection', (socket) => {
         socket.to(teamName).emit('sync_state_patch', { key, value });
     });
     socket.on('disconnect', async () => {
+        console.log('Client disconnected:', socket.id);
         const teamName = socket.data.teamName;
         if (teamName) {
             const sockets = await io.in(teamName).fetchSockets();
@@ -83,6 +118,21 @@ let activeInterceptCode = null;
 // Game Core State
 let currentMultiplier = 1;
 const teamStrikes = new Map();
+const recordScoreEvent = async (teamId, eventType, points, metadata = {}) => {
+    if (!teamId || points === 0)
+        return;
+    const { error } = await supabase.from('score_events').insert([
+        {
+            team_id: teamId,
+            event_type: eventType,
+            points,
+            metadata,
+        },
+    ]);
+    if (error) {
+        console.error('Failed to record score event:', error.message);
+    }
+};
 // Simulate Adversary Events
 setInterval(() => {
     if (!activeInterceptCode && Math.random() > 0.4) {
@@ -90,10 +140,11 @@ setInterval(() => {
         io.emit('score_event', { message: `[ADVERSARY BREACH] System compromised. First to enter '${activeInterceptCode}' in SYS_TERMINAL gets ${100 * currentMultiplier} PTS.` });
     }
 }, 45000);
-app.post('/api/systems/win', authenticateToken, (req, res) => {
+app.post('/api/systems/win', authenticateToken, async (req, res) => {
     const { score } = req.body;
     if (score && score > 0) {
         const points = score * 10;
+        await recordScoreEvent(req.user?.id, 'math_assessment', points, { score });
         io.emit('score_event', { message: `[DIAGNOSTIC] ${req.user?.name} scored ${score} on Math Assessment (+${points} PTS)` });
     }
     else {
@@ -127,20 +178,20 @@ app.post('/api/admin/overclock', authenticateToken, requireAdmin, (req, res) => 
     io.emit('score_event', { message: `[OVERCLOCK] All network rewards are now operating at ${multiplier}X multiplier!` });
     res.json({ success: true, multiplier });
 });
-let mockTeams = [
-    { id: 1, name: 'TEAM_ALPHA', members: ['Alice (Field)', 'Bob (Intel)'], score: 850, is_disabled: false },
-    { id: 2, name: 'TEAM_BETA', members: ['Charlie (Field)', 'Dave (Intel)'], score: 450, is_disabled: false },
-    { id: 3, name: 'TEAM_GAMMA', members: ['Eve (Field)', 'Frank (Intel)'], score: 0, is_disabled: true }
-];
+// Mock teams removed to strictly rely on Supabase
 app.get('/api/admin/teams', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const { data, error } = await supabase.from('teams').select('id, name, score, is_disabled, members');
         if (error)
             throw error;
-        res.json({ teams: data });
+        const enrichedData = data.map(t => ({
+            ...t,
+            is_online: io.sockets.adapter.rooms.has(t.name)
+        }));
+        res.json({ teams: enrichedData });
     }
     catch (err) {
-        res.json({ teams: mockTeams });
+        res.status(500).json({ error: err.message || 'Failed to fetch teams' });
     }
 });
 app.post('/api/admin/teams', authenticateToken, requireAdmin, async (req, res) => {
@@ -157,16 +208,7 @@ app.post('/api/admin/teams', authenticateToken, requireAdmin, async (req, res) =
         res.json({ success: true, team: data });
     }
     catch (err) {
-        // Fallback for preview
-        const newTeam = {
-            id: mockTeams.length + 1,
-            name,
-            members: ['Unknown'],
-            score: 0,
-            is_disabled: false
-        };
-        mockTeams.push(newTeam);
-        res.json({ success: true, team: newTeam });
+        res.status(500).json({ error: err.message || 'Failed to create team' });
     }
 });
 app.post('/api/admin/teams/:id/toggle', authenticateToken, requireAdmin, async (req, res) => {
@@ -179,10 +221,7 @@ app.post('/api/admin/teams/:id/toggle', authenticateToken, requireAdmin, async (
         res.json({ success: true, is_disabled: disabled });
     }
     catch (err) {
-        const team = mockTeams.find(t => t.id === teamId);
-        if (team)
-            team.is_disabled = disabled;
-        res.json({ success: true, is_disabled: disabled });
+        res.status(500).json({ error: err.message || 'Failed to update team status' });
     }
 });
 app.put('/api/admin/teams/:id/members', authenticateToken, requireAdmin, async (req, res) => {
@@ -195,47 +234,61 @@ app.put('/api/admin/teams/:id/members', authenticateToken, requireAdmin, async (
         res.json({ success: true, members });
     }
     catch (err) {
-        const team = mockTeams.find(t => t.id === teamId);
-        if (team)
-            team.members = members;
-        res.json({ success: true, members });
+        res.status(500).json({ error: err.message || 'Failed to update members' });
     }
 });
-app.post('/api/terminal/execute', authenticateToken, (req, res) => {
+app.delete('/api/admin/teams/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const teamId = parseInt(req.params.id);
+    try {
+        const { error } = await supabase.from('teams').delete().eq('id', teamId);
+        if (error)
+            throw error;
+        res.json({ success: true });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message || 'Failed to delete team' });
+    }
+});
+app.post('/api/terminal/execute', authenticateToken, async (req, res) => {
     const { command } = req.body;
     if (activeInterceptCode && command === activeInterceptCode) {
+        const points = 100 * currentMultiplier;
+        await recordScoreEvent(req.user?.id, 'defuse_breach', points, { command });
         io.emit('score_event', { message: `[DEFENSE SUCCESS] ${req.user?.name} neutralized the breach! (+${100 * currentMultiplier} PTS)` });
         activeInterceptCode = null;
         return res.json({ success: true, message: 'Intercept successful!' });
     }
     res.status(400).json({ error: 'Command unrecognized or expired.' });
 });
-app.post('/api/broker/hint', authenticateToken, (req, res) => {
-    // Simulates deducting points for a hint
+app.post('/api/broker/hint', authenticateToken, async (req, res) => {
+    await recordScoreEvent(req.user?.id, 'broker_hint', -50);
     io.emit('score_event', { message: `[INFORMATION BROKER] ${req.user?.name} sacrificed 50 PTS to intercept an encrypted clue.` });
     res.json({ success: true, hint: "The gap in the timeline is exactly 11 minutes." });
 });
-app.post('/api/blackmarket/buy', authenticateToken, (req, res) => {
+app.post('/api/blackmarket/buy', authenticateToken, async (req, res) => {
     const { item, targetTeam } = req.body;
+    await recordScoreEvent(req.user?.id, 'blackmarket_buy', -50, { item, targetTeam });
     io.emit('sabotage', { target: targetTeam, by: req.user?.name, item });
     io.emit('score_event', { message: `[BLACK MARKET] ${targetTeam} was hit by a sensory disruption attack!` });
     res.json({ success: true });
 });
-app.post('/api/r0/submit', authenticateToken, (req, res) => {
+app.post('/api/r0/submit', authenticateToken, async (req, res) => {
     const task = req.body.task;
     let msg = `${req.user?.name} completed Round 0 Diagnostic: ${task}.`;
     if (task && !globalFirstSolves.has(`r0_${task}`)) {
         globalFirstSolves.add(`r0_${task}`);
+        await recordScoreEvent(req.user?.id, 'round0_first_solve', 50, { task });
         msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to connect: ${task}! (+50 Pts)`;
     }
     io.emit('score_event', { message: msg });
     res.json({ success: true });
 });
-app.post('/api/r1/claim', authenticateToken, (req, res) => {
+app.post('/api/r1/claim', authenticateToken, async (req, res) => {
     const code = req.body.code;
     let msg = `${req.user?.name} recovered a new evidence fragment in ARCHIVE.`;
     if (code && !globalFirstSolves.has(`r1_${code}`)) {
         globalFirstSolves.add(`r1_${code}`);
+        await recordScoreEvent(req.user?.id, 'round1_first_solve', 50, { code });
         msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to extract evidence ${code}! (+50 Pts)`;
     }
     io.emit('score_event', { message: msg });
@@ -266,7 +319,7 @@ app.post('/api/auth/login', async (req, res) => {
             .eq('name', teamName)
             .single();
         if (error || !team) {
-            throw new Error('Supabase falling back to mock');
+            return res.status(401).json({ error: 'Invalid credentials or team not found' });
         }
         if (team.is_disabled) {
             return res.status(403).json({ error: 'Team account is disabled' });
@@ -284,21 +337,7 @@ app.post('/api/auth/login', async (req, res) => {
         res.json({ team: { id: team.id, name: team.name, score: team.score, role: team.role } });
     }
     catch (err) {
-        // MOCK PREVIEW FALLBACK
-        console.log("Using Mock Auth Fallback");
-        const mockTeamFromDB = mockTeams.find(t => t.name.toLowerCase() === teamName.toLowerCase());
-        if (mockTeamFromDB && mockTeamFromDB.is_disabled) {
-            return res.status(403).json({ error: 'Team account is disabled' });
-        }
-        const role = teamName.toUpperCase() === 'ADMIN' ? 'admin' : 'detective';
-        const mockTeam = { id: 1, name: teamName.toUpperCase(), score: mockTeamFromDB?.score || 0, role: role, token_version: 1 };
-        const token = jwt.sign(mockTeam, JWT_SECRET, { expiresIn: '48h' });
-        res.cookie('tech_detective_token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 48 * 60 * 60 * 1000
-        });
-        return res.json({ team: mockTeam });
+        res.status(500).json({ error: err.message || 'Database error during login' });
     }
 });
 app.post('/api/auth/logout', (req, res) => {
@@ -325,13 +364,6 @@ app.get('/api/auth/me', async (req, res) => {
         catch (dbErr) {
             res.json({ team: user });
         }
-    });
-});
-// Socket.IO
-io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
-    socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
     });
 });
 // Vite Middleware
@@ -364,3 +396,4 @@ async function startServer() {
 startServer().catch(err => {
     console.error("Failed to start server:", err);
 });
+// trigger reload

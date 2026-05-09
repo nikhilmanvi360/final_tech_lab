@@ -9,9 +9,13 @@ CREATE TABLE IF NOT EXISTS teams (
   role TEXT DEFAULT 'detective' CHECK (role IN ('detective', 'admin')),
   score INTEGER DEFAULT 0,
   is_disabled BOOLEAN DEFAULT FALSE,
+  members JSONB DEFAULT '[]'::jsonb,
   token_version INTEGER DEFAULT 1,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE teams
+ADD COLUMN IF NOT EXISTS members JSONB DEFAULT '[]'::jsonb;
 
 -- 2. cases
 CREATE TABLE IF NOT EXISTS cases (
@@ -147,8 +151,12 @@ FOR EACH ROW EXECUTE FUNCTION update_team_score();
 
 -- SEED DATA (For 3 Teams as requested + Admin)
 INSERT INTO teams (name, password, role) VALUES 
-('TEAM_ALPHA', '$2a$10$X2qLh8O1Z6jXlXbJwD9x5Oi6A6V6f1s2A2O6Q4r1D1d4d1D4D1D4.', 'detective'), -- Password: demo
-('TEAM_BETA', '$2a$10$X2qLh8O1Z6jXlXbJwD9x5Oi6A6V6f1s2A2O6Q4r1D1d4d1D4D1D4.', 'detective'),  -- Password: demo
-('TEAM_GAMMA', '$2a$10$X2qLh8O1Z6jXlXbJwD9x5Oi6A6V6f1s2A2O6Q4r1D1d4d1D4D1D4.', 'detective'), -- Password: demo
-('ADMIN', '$2a$10$X2qLh8O1Z6jXlXbJwD9x5Oi6A6V6f1s2A2O6Q4r1D1d4d1D4D1D4.', 'admin')          -- Password: demo
+('TEAM_ALPHA', '$2b$10$xOYmxWqWxWNdzQ7nQrM1Ie.FUawWKFfpuypX7MupnYiis.BrOHML2', 'detective'), -- Password: demo
+('TEAM_BETA', '$2b$10$xOYmxWqWxWNdzQ7nQrM1Ie.FUawWKFfpuypX7MupnYiis.BrOHML2', 'detective'),  -- Password: demo
+('TEAM_GAMMA', '$2b$10$xOYmxWqWxWNdzQ7nQrM1Ie.FUawWKFfpuypX7MupnYiis.BrOHML2', 'detective'), -- Password: demo
+('ADMIN', '$2b$10$xOYmxWqWxWNdzQ7nQrM1Ie.FUawWKFfpuypX7MupnYiis.BrOHML2', 'admin')          -- Password: demo
 ON CONFLICT (name) DO NOTHING;
+
+UPDATE teams
+SET password = '$2b$10$xOYmxWqWxWNdzQ7nQrM1Ie.FUawWKFfpuypX7MupnYiis.BrOHML2'
+WHERE name IN ('TEAM_ALPHA', 'TEAM_BETA', 'TEAM_GAMMA', 'ADMIN');

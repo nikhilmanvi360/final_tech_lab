@@ -65,6 +65,7 @@ export function Round0Page() {
   const pyodideLoaded = useRef(false);
   const navigate = useNavigate();
   const [pyodideInstance, setPyodideInstance] = useState<any>(null);
+  const [quizScores, setQuizScores] = useState<Record<number, boolean>>({});
 
   const getCode = (index: number) => {
     if (index === 0) return htmlCode;
@@ -197,7 +198,6 @@ export function Round0Page() {
   }
 
   const currentTask = TASKS[currentTaskIndex];
-  const [quizScores, setQuizScores] = useState<Record<number, boolean>>({});
 
   return (
     <div className="flex h-full gap-6">
