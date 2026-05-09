@@ -301,7 +301,7 @@ app.post('/api/auth/login', async (req, res) => {
       .single();
 
     if (error || !team) {
-      throw new Error('Supabase falling back to mock');
+      return res.status(401).json({ error: 'Invalid credentials or team not found' });
     }
 
     if (team.is_disabled) {
