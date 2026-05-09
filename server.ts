@@ -77,6 +77,9 @@ io.on('connection', (socket) => {
     // Send current state
     const state = teamStates.get(teamName) || {};
     socket.emit('sync_state_full', state);
+    
+    // Send current round state so team sees correct locked/unlocked status
+    broadcastRoundState(socket);
   });
 
   socket.on('update_state', ({ key, value }) => {
@@ -146,6 +149,21 @@ const globalFirstSolves = new Set<string>();
 // Game Core State
 let currentMultiplier = 1;
 const teamStrikes = new Map<string, { strikes: number, lockedUntil: number }>();
+
+// Round State — admin controls which rounds are unlocked
+const roundState: Record<string, boolean> = {
+  round0: true,
+  round1: false,
+  round2: false,
+  round3: false,
+};
+
+// Send round state to a specific socket or broadcast to all
+const broadcastRoundState = (target?: any) => {
+  const payload = { roundState };
+  if (target) target.emit('round_state_update', payload);
+  else io.emit('round_state_update', payload);
+};
 
 const recordScoreEvent = async (
   teamId: number | undefined,
@@ -291,6 +309,23 @@ app.post('/api/admin/overclock', authenticateToken, requireAdmin, (req, res) => 
   io.emit('multiplier_update', { multiplier });
   io.emit('score_event', { message: `[OVERCLOCK] All network rewards are now operating at ${multiplier}X multiplier!` });
   res.json({ success: true, multiplier });
+});
+
+// Admin Round Control — get and set which rounds are unlocked
+app.get('/api/admin/rounds', authenticateToken, requireAdmin, (req, res) => {
+  res.json({ roundState });
+});
+
+app.post('/api/admin/rounds', authenticateToken, requireAdmin, (req, res) => {
+  const { round, unlocked } = req.body;
+  const validRounds = ['round0', 'round1', 'round2', 'round3'];
+  if (!validRounds.includes(round) || typeof unlocked !== 'boolean') {
+    return res.status(400).json({ error: 'Invalid round or state' });
+  }
+  roundState[round] = unlocked;
+  broadcastRoundState();
+  io.emit('score_event', { message: `[ADMIN] ${round.toUpperCase()} is now ${unlocked ? 'UNLOCKED' : 'LOCKED'}.` });
+  res.json({ success: true, roundState });
 });
 
 // Mock teams removed to strictly rely on Supabase

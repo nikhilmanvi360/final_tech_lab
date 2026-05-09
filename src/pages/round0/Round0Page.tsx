@@ -115,7 +115,7 @@ export function Round0Page() {
     if (task.id === "HTML") {
       isCorrect = code.toLowerCase().includes("<table");
     } else if (task.id === "CSS") {
-      isCorrect = code.replace(/\s/g, "").includes("filter:none");
+      isCorrect = code.replace(/\s/g, "").includes("filter:none") || !code.includes("blur");
     } else if (task.id === "PYTHON") {
       if (!pyodideInstance) {
         setError("Python environment still loading...");
