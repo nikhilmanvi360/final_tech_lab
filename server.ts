@@ -291,10 +291,10 @@ app.post('/api/systems/fail', authenticateToken, (req, res) => {
   if (Date.now() > record.lockedUntil) {
     record.strikes += 1;
     if (record.strikes >= 3) {
-      record.lockedUntil = Date.now() + 60000; // 1 minute lockout
+      // record.lockedUntil = Date.now() + 60000; // 1 minute lockout disabled
       record.strikes = 0;
-      io.emit('score_event', { message: `[ANTI-BRUTEFORCE] ${teamName} triggered security protocols and is LOCKED for 60s.` });
-      io.emit('lockout_event', { target: teamName, duration: 60000 });
+      io.emit('score_event', { message: `[SECURITY] ${teamName} exceeded fail threshold, but lockdown is currently disabled.` });
+      // io.emit('lockout_event', { target: teamName, duration: 60000 });
     }
   }
   
