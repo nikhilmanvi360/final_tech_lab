@@ -148,6 +148,7 @@ const globalFirstSolves = new Set<string>();
 
 // Game Core State
 let currentMultiplier = 1;
+let isLockdownEnabled = false;
 const teamStrikes = new Map<string, { strikes: number, lockedUntil: number }>();
 
 // Round State — admin controls which rounds are unlocked
@@ -291,10 +292,14 @@ app.post('/api/systems/fail', authenticateToken, (req, res) => {
   if (Date.now() > record.lockedUntil) {
     record.strikes += 1;
     if (record.strikes >= 3) {
-      // record.lockedUntil = Date.now() + 60000; // 1 minute lockout disabled
+      if (isLockdownEnabled) {
+        record.lockedUntil = Date.now() + 60000; // 1 minute lockout
+        io.emit('score_event', { message: `[ANTI-BRUTEFORCE] ${teamName} triggered security protocols and is LOCKED for 60s.` });
+        io.emit('lockout_event', { target: teamName, duration: 60000 });
+      } else {
+        io.emit('score_event', { message: `[SECURITY] ${teamName} exceeded fail threshold, but lockdown is currently disabled.` });
+      }
       record.strikes = 0;
-      io.emit('score_event', { message: `[SECURITY] ${teamName} exceeded fail threshold, but lockdown is currently disabled.` });
-      // io.emit('lockout_event', { target: teamName, duration: 60000 });
     }
   }
   
@@ -326,6 +331,27 @@ app.post('/api/admin/rounds', authenticateToken, requireAdmin, (req, res) => {
   broadcastRoundState();
   io.emit('score_event', { message: `[ADMIN] ${round.toUpperCase()} is now ${unlocked ? 'UNLOCKED' : 'LOCKED'}.` });
   res.json({ success: true, roundState });
+});
+
+// Admin Control for Lockdown
+app.get('/api/admin/lockdown/status', authenticateToken, requireAdmin, (req, res) => {
+  res.json({ isLockdownEnabled });
+});
+
+app.post('/api/admin/lockdown/toggle', authenticateToken, requireAdmin, (req, res) => {
+  const { enabled } = req.body;
+  if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Invalid state' });
+  isLockdownEnabled = enabled;
+  io.emit('score_event', { message: `[ADMIN] Security Lockdown System is now ${enabled ? 'ENABLED' : 'DISABLED'}.` });
+  res.json({ success: true, isLockdownEnabled });
+});
+
+// Admin Global State Reset
+app.post('/api/admin/reset-state', authenticateToken, requireAdmin, (req, res) => {
+  teamStates.clear();
+  io.emit('score_event', { message: `[ADMIN] GLOBAL GAME STATE HAS BEEN RESET.` });
+  io.emit('sync_state_full', {}); // Force all clients to clear local shared state
+  res.json({ success: true });
 });
 
 // Mock teams removed to strictly rely on Supabase
@@ -464,6 +490,39 @@ app.post('/api/r1/claim', authenticateToken, async (req, res) => {
     }
     io.emit('score_event', { message: msg });
     res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to record score' });
+  }
+});
+
+app.post('/api/r2/claim', authenticateToken, async (req, res) => {
+  const task = req.body.task;
+  let msg = `${req.user?.name} extracted a critical clue in the NEWSROOM.`;
+  try {
+    if (
+      task &&
+      !globalFirstSolves.has(`r2_${task}`) &&
+      !(await hasGlobalScoreEvent('round2_first_solve', { task }))
+    ) {
+      globalFirstSolves.add(`r2_${task}`);
+      await recordScoreEvent(req.user?.id, 'round2_first_solve', 50, { task });
+      msg = `[FIRST BLOOD] ${req.user?.name} was the FIRST to recover ${task}! (+50 Pts)`;
+    }
+    io.emit('score_event', { message: msg });
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to record score' });
+  }
+});
+
+app.post('/api/r3/claim', authenticateToken, async (req, res) => {
+  try {
+    if (await hasScoreEvent(req.user?.id, 'round3_complete')) {
+      return res.status(409).json({ error: 'Round 3 already completed' });
+    }
+    const updatedScore = await recordScoreEvent(req.user?.id, 'round3_complete', 500);
+    io.emit('score_event', { message: `[CASE CLOSED] ${req.user?.name} HAS COMPLETED THE INVESTIGATION! (+500 PTS)` });
+    res.json({ success: true, score: updatedScore });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to record score' });
   }

@@ -905,7 +905,7 @@ export function Round2Page() {
       });
 
       api
-        .post("/api/r0/submit", { task: `clue_${opt.clueRes}` })
+        .post("/api/r2/claim", { task: `clue_${opt.clueRes}` })
         .catch(() => {});
     }
     if (opt.end || !opt.nextNode) {
@@ -1017,7 +1017,7 @@ export function Round2Page() {
                 description: entity.clue
               });
               api
-                .post("/api/r0/submit", { task: `clue_${entity.clue}` })
+                .post("/api/r2/claim", { task: `clue_${entity.clue}` })
                 .catch(() => {});
             }
             newOutput.push("\n[!] CRITICAL DATA EXTRACTED.");

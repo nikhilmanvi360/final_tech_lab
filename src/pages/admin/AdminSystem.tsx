@@ -1,10 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Settings, Zap, ShieldAlert } from "lucide-react";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 
 export function AdminSystem() {
   const [multiplier, setMultiplier] = useState(1);
+  const [isLockdownEnabled, setIsLockdownEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const d = await api.get<any>("/api/admin/lockdown/status");
+        setIsLockdownEnabled(d.isLockdownEnabled);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStatus();
+  }, []);
+
+  const toggleLockdown = async () => {
+    try {
+      const d = await api.post<any>("/api/admin/lockdown/toggle", { enabled: !isLockdownEnabled });
+      setIsLockdownEnabled(d.isLockdownEnabled);
+      toast.success(`Security Lockdown System ${d.isLockdownEnabled ? 'ENABLED' : 'DISABLED'}`);
+    } catch (e) {
+      toast.error("Failed to toggle lockdown");
+    }
+  };
 
   const applyOverclock = async (val: number) => {
     try {
@@ -54,17 +80,26 @@ export function AdminSystem() {
         </div>
       </div>
 
-      <div className="bg-black/50 border border-border p-6 opacity-60">
-        <h2 className="text-lg font-bold text-red-500 uppercase mb-4 flex items-center gap-2">
-          <ShieldAlert className="w-6 h-6 text-red-500" /> Anti-Bruteforce
-          Module
-        </h2>
+      <div className={`bg-black/50 border p-6 transition-all ${isLockdownEnabled ? 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-border opacity-60'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-red-500 uppercase flex items-center gap-2">
+            <ShieldAlert className="w-6 h-6 text-red-500" /> Anti-Bruteforce
+            Module
+          </h2>
+          <button
+            onClick={toggleLockdown}
+            disabled={loading}
+            className={`px-6 py-2 font-bold uppercase text-xs border transition-all ${isLockdownEnabled ? 'bg-red-600 text-white border-red-500' : 'bg-black text-muted border-border hover:text-white'}`}
+          >
+            {isLockdownEnabled ? 'Deactivate System' : 'Activate System'}
+          </button>
+        </div>
         <p className="text-muted text-sm mb-4">
           Automatically issues a 60-second client lockdown on any team that
           submits 3 consecutive failed queries anywhere across the system.
         </p>
-        <p className="text-green-500 font-mono text-sm">
-          [STATUS: ONLINE & ENFORCED SYSTEM-WIDE]
+        <p className={`font-mono text-sm ${isLockdownEnabled ? 'text-red-500 animate-pulse' : 'text-muted'}`}>
+          [STATUS: {isLockdownEnabled ? 'ONLINE & ENFORCED SYSTEM-WIDE' : 'OFFLINE - MONITORING ONLY'}]
         </p>
       </div>
     </div>

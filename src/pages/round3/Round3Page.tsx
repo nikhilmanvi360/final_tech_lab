@@ -116,6 +116,7 @@ export function Round3Page() {
   };
 
   const submitPhaseC = () => {
+    api.post("/api/r3/claim").catch(() => {});
     setPhaseCStatus("SUCCESS");
     setTimeout(() => setShowFinalReveal(true), 1500);
   };

@@ -122,6 +122,21 @@ export function AdminOverview() {
             >
               <Lock className="w-4 h-4" /> Lock All
             </button>
+            <button
+              onClick={async () => {
+                if (window.confirm("WARNING: This will clear all team clues, inventories, and positions. Proceed?")) {
+                  try {
+                    await api.post("/api/admin/reset-state", {});
+                    alert("Game state reset successful.");
+                  } catch (e) {
+                    alert("Failed to reset state.");
+                  }
+                }
+              }}
+              className="px-4 py-2 bg-gray-900 border border-dashed border-gray-500 text-gray-400 text-xs font-bold uppercase hover:bg-gray-800 transition flex items-center gap-2"
+            >
+              Reset All
+            </button>
           </div>
         </div>
 
