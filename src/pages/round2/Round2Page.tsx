@@ -62,6 +62,7 @@ type Entity = {
   dialogue?: Record<string, DialogueNode>;
   startNode?: string;
   requiredClues?: number;
+  avatar?: string;
 
   // Terminals
   fs?: Record<string, FileSystemNode>;
@@ -89,6 +90,7 @@ const INITIAL_ENTITIES: Entity[] = [
     y: 2,
     type: "npc",
     name: "Dev Sharma",
+    avatar: "/dev_sharma.png",
     startNode: "root",
     dialogue: {
       root: {
@@ -171,6 +173,7 @@ const INITIAL_ENTITIES: Entity[] = [
     y: 4,
     type: "npc",
     name: "IT Assistant",
+    avatar: "/it_assistant.png",
     startNode: "root",
     dialogue: {
       root: {
@@ -281,6 +284,7 @@ const INITIAL_ENTITIES: Entity[] = [
     y: 18,
     type: "npc",
     name: "Ananya Bose (Editor)",
+    avatar: "/ananya_bose.png",
     requiredClues: 3,
     startNode: "root",
     dialogue: {
@@ -380,6 +384,7 @@ const INITIAL_ENTITIES: Entity[] = [
     y: 4,
     type: "npc",
     name: "Vikram Sundaram (CEO)",
+    avatar: "/vikram_sundaram.png",
     requiredClues: 4,
     startNode: "root",
     dialogue: {
@@ -486,28 +491,28 @@ const INITIAL_ENTITIES: Entity[] = [
   },
 ];
 
+function TypewriterText({ text, speed = 30 }: { text: string; speed?: number; key?: any }) {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    setDisplayedText("");
+    let i = 0;
+    const interval = setInterval(() => {
+      setDisplayedText((prev) => prev + text.charAt(i));
+      i++;
+      if (i >= text.length) clearInterval(interval);
+    }, speed);
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return <span>{displayedText}</span>;
+}
+
 export function Round2Page() {
   const { team } = useOutletContext<{ team: any }>();
   const isIntel = team?.playerRole?.includes("Intel");
   const [showIntro, setShowIntro] = useState(true);
 
-  if (showIntro) {
-    return (
-      <RoundCutscene
-        roundNumber={2}
-        title="Newsroom Infiltration"
-        subtitle="Physical Site Breach"
-        description={[
-          "Bypassing physical security protocols...",
-          "Warning: Newsroom floor is patrolled by Sec-Bot Alphas.",
-          "Note: Intel Officers can see bot paths and hidden clues, Field Agents cannot.",
-          "Mission: Infiltrate the server room, recover wiped drive logs, and bypass the laser grid.",
-          "Objective: Collect 5 key evidence links and confront the Editor."
-        ]}
-        onComplete={() => setShowIntro(false)}
-      />
-    );
-  }
 
   const [removedEntities, setRemovedEntities] = useSharedState<string[]>(
     "r2_removed",
@@ -1182,6 +1187,24 @@ export function Round2Page() {
     endOfTerminalRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [interactionState.terminalOutput]);
 
+  if (showIntro) {
+    return (
+      <RoundCutscene
+        roundNumber={2}
+        title="Newsroom Infiltration"
+        subtitle="Physical Site Breach"
+        description={[
+          "Bypassing physical security protocols...",
+          "Warning: Newsroom floor is patrolled by Sec-Bot Alphas.",
+          "Note: Intel Officers can see bot paths and hidden clues, Field Agents cannot.",
+          "Mission: Infiltrate the server room, recover wiped drive logs, and bypass the laser grid.",
+          "Objective: Collect 5 key evidence links and confront the Editor."
+        ]}
+        onComplete={() => setShowIntro(false)}
+      />
+    );
+  }
+
   return (
     <div className="h-full flex flex-col pt-2 pb-8 max-w-[1200px] w-full mx-auto px-4 overflow-hidden">
       <div className="flex items-center justify-between mb-4 border-b border-border pb-2 shrink-0">
@@ -1362,58 +1385,84 @@ export function Round2Page() {
 
       {/* Interaction Modal */}
       {interactionState.phase && interactionState.entity && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-[#140e06] border border-gold p-6 relative shadow-[0_0_30px_rgba(212,160,23,0.15)] font-mono">
-            {interactionState.phase === "dialogue" && (
-              <>
-                <div className="flex items-center gap-3 border-b border-gold/30 pb-4 mb-4">
-                  <MessageSquare className="w-6 h-6 text-blue-400" />
-                  <h3 className="text-xl font-bold text-blue-400 uppercase">
-                    {interactionState.entity.name}
-                  </h3>
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${interactionState.phase === 'dialogue' ? 'bg-black/40' : 'bg-black/80'}`}>
+          {interactionState.phase === "dialogue" ? (
+            <div className="fixed bottom-0 left-0 right-0 z-[60] bg-gradient-to-t from-[#050505] via-[#0a0a0a]/95 to-transparent p-8 pb-12 backdrop-blur-md border-t border-blue-500/30 animate-in slide-in-from-bottom duration-500">
+              <div className="max-w-6xl mx-auto flex gap-10 items-start">
+                {/* Portrait */}
+                <div className="flex-none w-56 h-72 bg-blue-900/20 border-2 border-blue-500/40 relative overflow-hidden shadow-[0_0_40px_rgba(59,130,246,0.15)] group">
+                  {interactionState.entity.avatar ? (
+                    <img 
+                      src={interactionState.entity.avatar} 
+                      alt={interactionState.entity.name}
+                      className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                      <UserCircle className="w-32 h-32 text-blue-500/20" />
+                    </div>
+                  )}
+                  {/* Scanner Effect */}
+                  <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-400/50 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-scan" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-950/40 to-transparent pointer-events-none" />
+                  {/* Corner Accents */}
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-blue-400/50" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-blue-400/50" />
                 </div>
 
-                {interactionState.entity.requiredClues &&
-                clues.length < interactionState.entity.requiredClues ? (
-                  <div className="text-body text-lg leading-relaxed mb-8 min-h-[80px]">
-                    "I've told the police everything I know. Come back when you
-                    have something concrete."
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-body text-lg leading-relaxed mb-8 min-h-[80px]">
-                      {
-                        interactionState.entity.dialogue![
-                          interactionState.currentNodeId
-                        ]?.text
-                      }
+                {/* Content */}
+                <div className="flex-1 flex flex-col gap-8">
+                  <div className="flex flex-col gap-2">
+                    <div className="text-[10px] font-mono text-blue-400/60 uppercase tracking-[0.5em] flex items-center gap-3">
+                      <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-ping" />
+                      Encrypted Link Active // Source: {interactionState.entity.id}
                     </div>
-                    <div className="flex flex-col gap-2 mb-4">
-                      {interactionState.entity.dialogue![
-                        interactionState.currentNodeId
-                      ]?.options.map((opt, i) => (
+                    <h3 className="text-3xl font-bold text-white uppercase tracking-[0.2em] flex items-baseline gap-4">
+                      {interactionState.entity.name}
+                      <span className="text-xs font-normal text-blue-500/50 font-mono tracking-normal normal-case">/ Local Network /</span>
+                    </h3>
+                  </div>
+
+                  <div className="text-2xl text-blue-50/90 leading-relaxed font-mono min-h-[120px] bg-blue-500/5 p-6 border-l-4 border-blue-500/40">
+                    {interactionState.entity.requiredClues &&
+                    clues.length < interactionState.entity.requiredClues ? (
+                      <TypewriterText text="I've told the police everything I know. Come back when you have something concrete." />
+                    ) : (
+                      <TypewriterText 
+                        text={interactionState.entity.dialogue![interactionState.currentNodeId]?.text || ""} 
+                      />
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {!(interactionState.entity.requiredClues && clues.length < interactionState.entity.requiredClues) &&
+                      interactionState.entity.dialogue![interactionState.currentNodeId]?.options.map((opt, i) => (
                         <button
                           key={i}
                           onClick={() => selectDialogueOption(opt)}
-                          className="text-left px-4 py-3 bg-blue-900/20 border border-blue-500/50 text-blue-400 hover:bg-blue-900/50 hover:border-blue-400 transition"
+                          className="group relative flex items-center gap-4 text-left px-6 py-4 bg-blue-950/20 border border-blue-500/20 text-blue-200 hover:bg-blue-500/20 hover:border-blue-400 hover:text-white transition-all duration-300 overflow-hidden shadow-lg"
                         >
-                          &gt; {opt.text}
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 transform scale-y-0 group-hover:scale-y-100 transition-transform origin-center duration-300" />
+                          <span className="text-blue-500 font-bold font-mono group-hover:translate-x-1 transition-transform">&gt;</span>
+                          <span className="uppercase tracking-widest text-xs font-bold">{opt.text}</span>
+                          <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Zap className="w-4 h-4 text-blue-400" />
+                          </div>
                         </button>
                       ))}
-                    </div>
-                  </>
-                )}
-
-                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gold/30">
-                  <button
-                    onClick={closeInteraction}
-                    className="px-6 py-2 border border-border text-muted hover:text-white uppercase transition"
-                  >
-                    Walk Away
-                  </button>
+                    
+                    <button
+                      onClick={closeInteraction}
+                      className="col-span-full mt-4 text-[10px] font-mono text-white/30 hover:text-red-400 uppercase tracking-[0.3em] transition-colors flex items-center justify-center gap-3 py-2 border-t border-white/5"
+                    >
+                      <Lock className="w-3 h-3" /> Terminate Connection [ESC]
+                    </button>
+                  </div>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full max-w-2xl bg-[#140e06] border border-gold p-6 relative shadow-[0_0_30px_rgba(212,160,23,0.15)] font-mono">
 
             {interactionState.phase === "minigame" && (
               <div className="flex flex-col items-center">
@@ -1579,7 +1628,8 @@ export function Round2Page() {
                 </div>
               </>
             )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>
