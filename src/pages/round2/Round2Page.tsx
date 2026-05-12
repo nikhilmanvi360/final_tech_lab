@@ -25,6 +25,7 @@ import { useSharedState } from "../../hooks/useSharedState";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../services/api";
 import { RoundCutscene } from "../../components/RoundCutscene";
+import { motion } from "framer-motion";
 
 const GRID_W = 36;
 const GRID_H = 24;
@@ -89,6 +90,7 @@ type Entity = {
   // Guards
   path?: { x: number; y: number }[];
   pathIdx?: number;
+  facing?: "up" | "down" | "left" | "right";
 
   // Co-op Mechanics
   linkedLaserId?: string;
@@ -563,6 +565,8 @@ export function Round2Page() {
     "global_evidence",
     [],
   );
+  const [suspicion, setSuspicion] = useSharedState("r2_suspicion", 0);
+  const [pings, setPings] = useSharedState<{x: number, y: number, id: string}[]>("r2_pings", []);
 
   const [interactionState, setInteractionState] = useState<{
     entity: Entity | null;
@@ -616,19 +620,57 @@ export function Round2Page() {
     return false;
   };
 
+  const isInVision = (guard: Entity, tx: number, ty: number) => {
+    if (guard.type !== "guard") return false;
+    const dx = tx - guard.x;
+    const dy = ty - guard.y;
+    const dist = Math.abs(dx) + Math.abs(dy);
+    
+    if (dist > 4) return false; // Max vision range
+
+    if (guard.facing === "right") return dx > 0 && Math.abs(dy) <= dx;
+    if (guard.facing === "left") return dx < 0 && Math.abs(dy) <= Math.abs(dx);
+    if (guard.facing === "down") return dy > 0 && Math.abs(dx) <= dy;
+    if (guard.facing === "up") return dy < 0 && Math.abs(dx) <= Math.abs(dy);
+    
+    return false;
+  };
+
   const checkGuardCollision = useCallback(() => {
     if (isIntel) return; // Only Field Agent checks guards
+    
+    // Check direct collision
     const hitGuard = displayEntities.find(
       (e) =>
         e.type === "guard" &&
-        Math.abs(e.x - playerPos.x) <= 1 &&
-        Math.abs(e.y - playerPos.y) <= 1,
+        Math.abs(e.x - playerPos.x) <= 0.5 &&
+        Math.abs(e.y - playerPos.y) <= 0.5,
     );
+
     if (hitGuard) {
-      toast.error("Spotted! Resetting position...");
+      toast.error("COLLISION! Resetting position...");
       setPlayerPos({ x: 1, y: 1 });
+      setSuspicion(prev => Math.min(100, prev + 20));
+      return;
     }
-  }, [displayEntities, playerPos, setPlayerPos, isIntel]);
+
+    // Check vision cones
+    const inVisionOf = displayEntities.find(e => e.type === "guard" && isInVision(e, playerPos.x, playerPos.y));
+    if (inVisionOf) {
+      setSuspicion(prev => {
+        const next = prev + 1.5;
+        if (next >= 100) {
+          toast.error("DETECTED! Returning to start.");
+          setPlayerPos({ x: 1, y: 1 });
+          return 0;
+        }
+        return next;
+      });
+    } else {
+      // Naturally decay suspicion
+      setSuspicion(prev => Math.max(0, prev - 0.2));
+    }
+  }, [displayEntities, playerPos, setPlayerPos, isIntel, setSuspicion]);
 
   useEffect(() => {
     if (isIntel) return; // ONLY the Field Agent processes the game loop to prevent double-updates and drift
@@ -656,7 +698,14 @@ export function Round2Page() {
             if (e.path && e.path.length > 0) {
               const nextIdx = (e.pathIdx! + 1) % e.path.length;
               const nextPos = e.path[nextIdx];
-              return { ...e, x: nextPos.x, y: nextPos.y, pathIdx: nextIdx };
+              
+              let facing = e.facing;
+              if (nextPos.x > e.x) facing = "right";
+              else if (nextPos.x < e.x) facing = "left";
+              else if (nextPos.y > e.y) facing = "down";
+              else if (nextPos.y < e.y) facing = "up";
+
+              return { ...e, x: nextPos.x, y: nextPos.y, pathIdx: nextIdx, facing };
             }
           }
           return e;
@@ -1106,8 +1155,14 @@ export function Round2Page() {
 
         let onTileClick = undefined;
         if (isIntel) {
-          if (entity?.type === "pressure_plate") {
-            onTileClick = () => {
+          onTileClick = () => {
+            const pingId = Math.random().toString(36).substring(7);
+            setPings(prev => [...prev, { x, y, id: pingId }]);
+            setTimeout(() => {
+              setPings(prev => prev.filter(p => p.id !== pingId));
+            }, 4000);
+
+            if (entity?.type === "pressure_plate") {
               if (entity.linkedLaserId) {
                 const laserId = entity.linkedLaserId;
                 if (disabledLasers.includes(laserId)) {
@@ -1125,9 +1180,7 @@ export function Round2Page() {
                   setDisabledLasers(prev => prev.filter(id => id !== laserId));
                 }, LASER_OVERRIDE_MS);
               }
-            };
-          } else if (entity?.type === "lure_trigger") {
-            onTileClick = () => {
+            } else if (entity?.type === "lure_trigger") {
               const now = Date.now();
               if (activeLure || now < lureCooldownUntil) {
                 const remainingMs = activeLure
@@ -1144,16 +1197,25 @@ export function Round2Page() {
                   setActiveLure(prev => prev?.id === entity.id ? null : prev);
                 }, LURE_ACTIVE_MS);
               }
-            };
-          }
+            }
+          };
         }
+
+        const isInAnyVision = displayEntities.some(e => e.type === "guard" && isInVision(e, x, y));
+        const visionClass = isInAnyVision ? (isIntel ? 'bg-red-500/20' : 'bg-red-500/5') : '';
 
         tiles.push(
           <div
             key={`${x}-${y}`}
             onClick={onTileClick}
-            className={`w-8 h-8 border-[0.5px] flex items-center justify-center relative ${bgClass} ${onTileClick ? 'cursor-pointer hover:bg-white/10' : ''}`}
+            className={`w-8 h-8 border-[0.5px] flex items-center justify-center relative ${bgClass} ${visionClass} ${suspicion > 80 ? 'animate-pulse' : ''} ${onTileClick ? 'cursor-pointer hover:bg-white/10' : ''}`}
           >
+            {pings.some(p => p.x === x && p.y === y) && (
+              <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+                <div className="w-4 h-4 rounded-full bg-blue-500 animate-ping shadow-[0_0_10px_#3b82f6]" />
+                <div className="w-2 h-2 rounded-full bg-blue-400 absolute shadow-[0_0_5px_#60a5fa]" />
+              </div>
+            )}
             {isWallTile && entity?.type === "door" && (
               <Lock className="w-5 h-5 text-red-500/70" />
             )}
@@ -1346,6 +1408,25 @@ export function Round2Page() {
 
         {/* Sidebar Status */}
         <div className="flex-1 flex flex-col gap-6">
+          {/* Suspicion Meter */}
+          <div className="border border-border bg-black/40 p-4">
+            <h3 className="font-bold text-red-500 border-b border-border pb-2 mb-4 uppercase flex items-center justify-between">
+              Suspicion Level
+              <span className="text-xl font-mono">{Math.floor(suspicion)}%</span>
+            </h3>
+            <div className="h-4 bg-red-950/30 border border-red-900/50 relative overflow-hidden">
+              <motion.div 
+                animate={{ width: `${suspicion}%` }}
+                className={`h-full transition-colors duration-300 ${suspicion > 70 ? 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)]' : suspicion > 40 ? 'bg-orange-500' : 'bg-gold'}`}
+              />
+            </div>
+            {suspicion > 70 && (
+              <p className="text-[10px] text-red-500 mt-2 animate-pulse uppercase font-black text-center tracking-[0.2em]">
+                Warning: Detection Imminent
+              </p>
+            )}
+          </div>
+
           <div className="border border-border bg-black/40 p-4">
             <h3 className="font-bold text-gold border-b border-border pb-2 mb-2 uppercase">
               Decrypted Logs
