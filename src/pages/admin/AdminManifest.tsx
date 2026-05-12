@@ -82,13 +82,12 @@ export function AdminManifest() {
             <p className="text-sm text-muted">Proper chronological order of events:</p>
             <ol className="list-decimal pl-6 space-y-2 text-sm bg-white/5 p-4 border border-white/10">
               <li>Rohan Dasgupta installed workspace_monitor.exe</li>
-              <li>Competitor threatens Priya (Rival Journalist Email)</li>
-              <li>Priya saves final draft at 03:04:16 AM</li>
-              <li>Kill-switch activated at 03:04:17 AM</li>
-              <li>Inspector Varma receives cash (April 13)</li>
-              <li>Medical examiner falsifies report (April 14)</li>
+              <li>workspace_monitor.exe contained a hidden cleanup_routine</li>
+              <li>Vikram Sundaram calls Rohan (02:47 AM)</li>
+              <li>Remote API call from Sundaram IP (03:04:17 AM)</li>
+              <li>ARCHIVE logs REMOTE_WIPE (03:04:17 AM)</li>
             </ol>
-            <p className="text-xs text-muted font-mono mt-2">Card IDs array: [1, 5, 2, 6, 4, 3]</p>
+            <p className="text-xs text-muted font-mono mt-2">Card IDs array: [1, 2, 3, 4, 5]</p>
           </div>
 
           <div className="flex-1 space-y-4">

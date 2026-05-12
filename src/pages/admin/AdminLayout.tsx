@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Database, Users, ShieldAlert, Settings, LayoutDashboard, BookOpen } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function AdminLayout() {
   const location = useLocation();
@@ -16,9 +17,13 @@ export function AdminLayout() {
   return (
     <div className="flex h-screen bg-background text-body font-mono">
       {/* Sidebar Nav */}
-      <div className="w-64 border-r border-border bg-black flex flex-col pt-8">
-        <h2 className="text-xl font-bold text-red-500 uppercase px-6 mb-8 tracking-widest">SysAdmin</h2>
-        <nav className="flex-1 flex flex-col gap-2 px-4">
+      <div className="w-64 border-r border-border bg-black/80 backdrop-blur-xl flex flex-col pt-8 z-50">
+        <div className="px-6 mb-12">
+          <h2 className="text-2xl font-black text-red-600 uppercase tracking-[0.2em]">SysAdmin</h2>
+          <div className="h-1 w-12 bg-red-600 mt-2" />
+        </div>
+        
+        <nav className="flex-1 flex flex-col gap-1 px-3">
           {links.map(l => {
             const isActive = location.pathname === l.path;
             const Icon = l.icon;
@@ -26,10 +31,16 @@ export function AdminLayout() {
               <Link 
                 key={l.path} 
                 to={l.path}
-                className={`flex items-center gap-4 px-4 py-3 border transition-all ${isActive ? 'bg-red-900/20 border-red-500/50 text-red-400 font-bold' : 'border-transparent text-muted hover:bg-border'}`}
+                className={`group flex items-center gap-4 px-5 py-3 transition-all duration-300 relative overflow-hidden ${isActive ? 'text-red-500 font-black' : 'text-muted hover:text-white'}`}
               >
-                <Icon className="w-5 h-5" />
-                <span>{l.label}</span>
+                {isActive && (
+                  <motion.div 
+                    layoutId="admin-nav-active"
+                    className="absolute inset-0 bg-red-950/20 border-l-4 border-red-600"
+                  />
+                )}
+                <Icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-red-500' : 'group-hover:text-red-400'}`} />
+                <span className="relative z-10 text-xs uppercase tracking-widest">{l.label}</span>
               </Link>
             );
           })}

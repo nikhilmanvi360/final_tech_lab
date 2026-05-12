@@ -1,6 +1,7 @@
 import { Shield, Activity, Users, Unlock, Lock, Play, Square } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
+import { motion } from 'framer-motion';
 
 const ROUNDS = [
   { id: 'round0', label: 'Phase 0: Diagnostics', color: 'emerald' },
@@ -78,27 +79,27 @@ export function AdminOverview() {
       <h1 className="text-3xl font-bold text-red-500 uppercase tracking-widest border-b border-border pb-4">Command Overview</h1>
 
       <div className="grid grid-cols-3 gap-6">
-        <div className="bg-black border border-border p-6 flex items-center gap-4">
-          <Users className="w-10 h-10 text-muted" />
-          <div>
-            <p className="text-muted text-sm uppercase">Active Teams</p>
-            <p className="text-2xl font-bold text-body">{loading ? "..." : activeTeamsCount}</p>
-          </div>
-        </div>
-        <div className="bg-black border border-border p-6 flex items-center gap-4">
-          <Activity className="w-10 h-10 text-muted" />
-          <div>
-            <p className="text-muted text-sm uppercase">Total Teams</p>
-            <p className="text-2xl font-bold text-body">{loading ? "..." : teams.length}</p>
-          </div>
-        </div>
-        <div className="bg-black border border-border p-6 flex items-center gap-4">
-          <Shield className="w-10 h-10 text-muted" />
-          <div>
-            <p className="text-muted text-sm uppercase">Platform Status</p>
-            <p className="text-2xl font-bold text-green-500">STABLE</p>
-          </div>
-        </div>
+        {[
+          { icon: Users, label: "Active Teams", value: loading ? "..." : activeTeamsCount, color: "text-blue-400" },
+          { icon: Activity, label: "Total Capacity", value: loading ? "..." : teams.length, color: "text-gold" },
+          { icon: Shield, label: "Platform Pulse", value: "STABLE", color: "text-green-500" }
+        ].map((stat, i) => (
+          <motion.div 
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-black/60 backdrop-blur-md border border-white/10 p-6 flex items-center gap-5 group hover:border-white/20 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.4)]"
+          >
+            <div className="p-3 bg-white/5 rounded-lg">
+              <stat.icon className={`w-8 h-8 ${stat.color} opacity-80 group-hover:opacity-100 transition-opacity`} />
+            </div>
+            <div>
+              <p className="text-muted text-[10px] uppercase tracking-[0.2em] mb-1 font-black">{stat.label}</p>
+              <p className={`text-2xl font-black ${stat.color} tracking-tighter`}>{stat.value}</p>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Round Control */}

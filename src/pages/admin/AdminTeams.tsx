@@ -25,6 +25,7 @@ export function AdminTeams() {
 
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
   const [editMembers, setEditMembers] = useState<string[]>([]);
+  const [editScore, setEditScore] = useState(0);
   const [newMemberName, setNewMemberName] = useState("");
 
   const fetchTeams = async () => {
@@ -107,6 +108,7 @@ export function AdminTeams() {
   const startEditing = (team: any) => {
     setEditingTeamId(team.id);
     setEditMembers([...team.members]);
+    setEditScore(team.score);
     setNewMemberName("");
   };
 
@@ -125,10 +127,11 @@ export function AdminTeams() {
     try {
       const data = await api.put<any>(`/api/admin/teams/${id}/members`, {
         members: editMembers,
+        score: editScore,
       });
       if (data.success) {
         setTeams(
-          teams.map((t) => (t.id === id ? { ...t, members: data.members } : t)),
+          teams.map((t) => (t.id === id ? { ...t, members: data.members, score: data.score || editScore } : t)),
         );
         setEditingTeamId(null);
       }
@@ -233,7 +236,7 @@ export function AdminTeams() {
               value={newTeamRole}
               onChange={(e) => setNewTeamRole(e.target.value)}
             >
-              <option value="detective">Field Agent</option>
+              <option value="detective">Operative Group</option>
               <option value="admin">System Admin</option>
             </select>
           </div>
@@ -336,7 +339,18 @@ export function AdminTeams() {
                       team.members.join(" // ")
                     )}
                   </td>
-                  <td className="p-4 text-gold font-bold">{team.score}</td>
+                  <td className="p-4 text-gold font-bold">
+                    {editingTeamId === team.id ? (
+                      <input 
+                        type="number"
+                        className="bg-black border border-border px-2 py-1 text-gold w-20 outline-none focus:border-gold"
+                        value={editScore}
+                        onChange={(e) => setEditScore(parseInt(e.target.value) || 0)}
+                      />
+                    ) : (
+                      team.score
+                    )}
+                  </td>
                   <td className="p-4 text-right space-x-4 flex justify-end items-center">
                     {editingTeamId === team.id ? (
                       <>
