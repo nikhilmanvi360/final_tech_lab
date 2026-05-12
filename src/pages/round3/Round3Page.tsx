@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { AlertTriangle, Lock, Unlock, Database } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertTriangle, Lock, Unlock, Database, Activity, Wifi, CheckCircle, Radio, Terminal, Shield } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { BreachProtocol } from "./BreachProtocol";
 import { useSharedState } from "../../hooks/useSharedState";
 import { api } from "../../services/api";
 import { toast } from "sonner";
 import { RoundCutscene } from "../../components/RoundCutscene";
+import { motion, AnimatePresence } from "framer-motion";
 
 const PHASE_A_CARDS = [
   {
@@ -103,6 +104,12 @@ export function Round3Page() {
     "r3_reveal",
     false,
   );
+  const [signalStrength, setSignalStrength] = useSharedState("r3_signal", 100);
+  const [tribunalApproval, setTribunalApproval] = useSharedState("r3_approval", 0);
+  
+  // Phase C Co-op States
+  const [phaseCReady, setPhaseCReady] = useSharedState<Record<string, boolean>>("r3_phaseC_ready", {});
+
   const navigate = useNavigate();
 
   const handleCardClick = (id: number) => {
@@ -120,9 +127,11 @@ export function Round3Page() {
     if (isCorrect) {
       setPhaseAStatus("SUCCESS");
       setPhaseCStatus("PENDING");
+      setTribunalApproval(prev => Math.min(100, prev + 35));
       toast.success("SYSTEM STABILIZED. Evidence chain verified.");
     } else {
       setPhaseAStatus("ERROR");
+      setSignalStrength(prev => Math.max(10, prev - 15));
       // Trigger Brute Force Penalty tracker
       api.post("/api/systems/fail").catch(() => {});
       setTimeout(() => setPhaseAStatus("PENDING"), 2000);
@@ -130,10 +139,24 @@ export function Round3Page() {
   };
 
   const submitPhaseC = () => {
-    api.post("/api/r3/claim").catch(() => {});
-    setPhaseCStatus("SUCCESS");
-    setTimeout(() => setShowFinalReveal(true), 1500);
+    const roleId = team.playerRole;
+    setPhaseCReady(prev => ({ ...prev, [roleId]: true }));
+    
+    toast.info("Awaiting secondary authentication key...", {
+      description: "Both operatives must confirm the final verdict."
+    });
   };
+
+  // Check for dual-key completion
+  useEffect(() => {
+    const activeRolesCount = Object.keys(phaseCReady).length;
+    if (activeRolesCount >= 2 && phaseCStatus === "PENDING") {
+      api.post("/api/r3/claim").catch(() => {});
+      setPhaseCStatus("SUCCESS");
+      setTribunalApproval(100);
+      setTimeout(() => setShowFinalReveal(true), 1500);
+    }
+  }, [phaseCReady, phaseCStatus, setShowFinalReveal, setPhaseCStatus, setTribunalApproval]);
 
   const handleStartOver = () => {
     setPhaseAChain([]);
@@ -144,46 +167,96 @@ export function Round3Page() {
 
   if (showFinalReveal) {
     return (
-      <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-8 text-gold font-mono">
-        <div className="max-w-3xl space-y-6 text-xl leading-relaxed">
-          <h1 className="text-4xl font-bold border-b border-gold pb-4 mb-8 text-center tracking-widest uppercase">
-            The Case is Complete
-          </h1>
-          <p>They found the 847 drafts Priya left behind.</p>
-          <p>They traced the call at 02:47 AM.</p>
-          <p>They read the logs that said REMOTE_WIPE_EXECUTED.</p>
-          <p>
-            They understood that 11 minutes is not a coincidence.
-            <br />
-            It is a timeline.
-          </p>
-          <p>
-            Rohan Dasgupta has been detained.
-            <br />
-            Vikram Sundaram's offices are under search.
-          </p>
-          <p>
-            Priya wrote at 03:04:16 AM:
-            <br />
-            "The contractor who signed off was Vikram Sundaram."
-          </p>
-          <p className="text-white mt-8">
-            She trusted ARCHIVE to hold the story.
-            <br />
-            ARCHIVE held it. You came looking.
-          </p>
-          <p className="text-2xl font-bold text-center mt-12 text-green-500 tracking-widest">
-            — ARCHIVE / OFFLINE
-          </p>
-          <div className="flex justify-center mt-12">
-            <button
-              onClick={() => navigate("/")}
-              className="px-8 py-3 bg-gold text-black font-bold uppercase transition hover:bg-yellow-500"
-            >
-              Return to Base
-            </button>
+      <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-8 overflow-hidden font-mono">
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,160,23,0.15),transparent)]" />
+          <div className="grid grid-cols-12 h-full w-full">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="border-r border-gold/10 h-full" />
+            ))}
           </div>
         </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-4xl w-full z-10 space-y-12"
+        >
+          <div className="text-center space-y-4">
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="inline-block px-6 py-2 border-2 border-green-500 text-green-500 font-black uppercase tracking-[0.5em] mb-4"
+            >
+              Verdict Filed Successfully
+            </motion.div>
+            <h1 className="text-7xl font-black text-body uppercase tracking-tighter leading-none">
+              Justice Vindicated
+            </h1>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8">
+            <motion.div 
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="bg-gold/5 border border-gold/20 p-6 space-y-4"
+            >
+              <div className="flex items-center gap-2 text-gold font-bold uppercase text-xs">
+                <CheckCircle className="w-4 h-4" /> Evidence Confirmed
+              </div>
+              <p className="text-sm text-muted leading-relaxed">
+                The 02:47 AM call logs and the REMOTE_WIPE signature have been verified by the tribunal. Rohan Dasgupta is in custody.
+              </p>
+            </motion.div>
+
+            <motion.div 
+              initial={{ x: 30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 1.2 }}
+              className="bg-gold/5 border border-gold/20 p-6 space-y-4"
+            >
+              <div className="flex items-center gap-2 text-gold font-bold uppercase text-xs">
+                <Shield className="w-4 h-4" /> System Integrity
+              </div>
+              <p className="text-sm text-muted leading-relaxed">
+                Priya Mehta's final draft at 03:04:16 AM has been recovered. Sundaram's infrastructure is now under federal audit.
+              </p>
+            </motion.div>
+          </div>
+
+          <div className="bg-red-500/10 border-y border-red-500/30 py-4 overflow-hidden relative">
+            <motion.div 
+              animate={{ x: [-1000, 1000] }}
+              transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+              className="flex gap-12 whitespace-nowrap text-red-500 font-bold uppercase tracking-widest text-sm"
+            >
+              <span>Breaking: Vikram Sundaram Offices Under Federal Raid</span>
+              <span>•</span>
+              <span>Rohan Dasgupta Detained For Questioning</span>
+              <span>•</span>
+              <span>ARCHIVE Servers Stabilized</span>
+              <span>•</span>
+              <span>Breaking: Vikram Sundaram Offices Under Federal Raid</span>
+            </motion.div>
+          </div>
+
+          <div className="flex flex-col items-center gap-6">
+             <p className="text-center text-muted italic max-w-lg">
+                "She trusted ARCHIVE to hold the story. ARCHIVE held it. You came looking."
+             </p>
+             <button
+                onClick={() => navigate("/")}
+                className="group relative px-12 py-4 bg-gold hover:bg-gold/90 transition-all"
+              >
+                <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:250%_250%] group-hover:animate-[shimmer_2s_infinite]" />
+                <span className="relative text-black font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                  Disconnect & Archive <Terminal className="w-5 h-5" />
+                </span>
+              </button>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -199,6 +272,44 @@ export function Round3Page() {
       />
     );
   }
+
+  const renderTribunalHUD = () => {
+    return (
+      <div className="bg-black/60 border-b border-gold/30 p-4 mb-8 flex items-center justify-between backdrop-blur-md sticky top-0 z-30">
+        <div className="flex items-center gap-8">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted uppercase tracking-[0.2em] mb-1">Transmission Status</span>
+            <div className="flex items-center gap-2 text-green-500 font-bold">
+              <Wifi className={`w-4 h-4 ${signalStrength < 40 ? 'text-red-500 animate-pulse' : ''}`} />
+              <span className={signalStrength < 40 ? 'text-red-500' : ''}>{signalStrength}% ENCRYPTED</span>
+            </div>
+          </div>
+          <div className="h-8 w-px bg-gold/20" />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted uppercase tracking-[0.2em] mb-1">Tribunal Approval</span>
+            <div className="flex items-center gap-4">
+              <div className="w-48 h-2 bg-gold/10 border border-gold/20 relative">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${tribunalApproval}%` }}
+                  className="h-full bg-gold shadow-[0_0_10px_rgba(212,160,23,0.5)]"
+                />
+              </div>
+              <span className="text-gold font-mono font-bold">{tribunalApproval}%</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className={`px-3 py-1 border ${phaseAStatus === 'SUCCESS' ? 'border-green-500/50 text-green-500' : 'border-gold/30 text-gold/30'} text-[10px] font-bold uppercase tracking-widest`}>
+            Timeline Verified
+          </div>
+          <div className={`px-3 py-1 border ${phaseBStatus === 'FILED' ? 'border-green-500/50 text-green-500' : 'border-gold/30 text-gold/30'} text-[10px] font-bold uppercase tracking-widest`}>
+            Interrogation Complete
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="h-full flex flex-col pt-2 max-w-6xl mx-auto">
@@ -238,7 +349,9 @@ export function Round3Page() {
         </div>
       </div>
 
-      <div className="flex-1 bg-black/40 border border-border p-8 overflow-y-auto relative">
+      <div className="flex-1 bg-black/40 border border-border p-8 overflow-y-auto relative flex flex-col min-h-0">
+        {renderTribunalHUD()}
+        
         {/* PHASE A - TIMELINE CHAIN */}
         {activeTab === "A" && (
           <div className="space-y-8 flex flex-col h-full relative">
