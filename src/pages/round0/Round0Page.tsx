@@ -4,6 +4,7 @@ import { CheckCircle, Terminal, Code, FileCode, Lock } from "lucide-react";
 import { useSharedState } from "../../hooks/useSharedState";
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import { RoundCutscene } from "../../components/RoundCutscene";
 
 import { MATH_MCQS } from "./mcqData";
 
@@ -69,6 +70,7 @@ export function Round0Page() {
   const [pyodideInstance, setPyodideInstance] = useState<any>(null);
   const [quizScores, setQuizScores] = useState<Record<number, boolean>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
 
   const getCode = (index: number) => {
     if (index === 0) return htmlCode;
@@ -153,6 +155,23 @@ export function Round0Page() {
       setError("VALIDATION FAILED: Output or structure incorrect.");
     }
   };
+
+  if (showIntro) {
+    return (
+      <RoundCutscene
+        roundNumber={0}
+        title="Diagnostics"
+        subtitle="System Access Restoration"
+        description={[
+          "Establishing secure link to the Newsroom network...",
+          "Warning: Core system files are corrupted or redacted.",
+          "Mission: Reconstruct the source list and bypass visual redaction filters.",
+          "Note: Field Agents must execute the Python decryption tools to proceed."
+        ]}
+        onComplete={() => setShowIntro(false)}
+      />
+    );
+  }
 
   if (showBriefing) {
     return (

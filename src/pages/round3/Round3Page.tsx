@@ -5,6 +5,7 @@ import { BreachProtocol } from "./BreachProtocol";
 import { useSharedState } from "../../hooks/useSharedState";
 import { api } from "../../services/api";
 import { toast } from "sonner";
+import { RoundCutscene } from "../../components/RoundCutscene";
 
 const PHASE_A_CARDS = [
   {
@@ -62,6 +63,7 @@ const CORRECT_CHAIN = [1, 2, 3, 4, 5];
 export function Round3Page() {
   const { team } = useOutletContext<{ team: any }>();
   const isIntel = team?.playerRole?.includes("Intel");
+  const [showIntro, setShowIntro] = useState(true);
   // Active Tab remains local so members can look at different things
   const [activeTab, setActiveTab] = useState<"A" | "B" | "C">("A");
 
@@ -171,6 +173,24 @@ export function Round3Page() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (showIntro) {
+    return (
+      <RoundCutscene
+        roundNumber={3}
+        title="Final Verdict"
+        subtitle="Operational Dossier Assembly"
+        description={[
+          "Compiling all recovered evidence fragments...",
+          "Establishing a secure broadcast to the independent tribunal.",
+          "Warning: Sundaram's legal team is attempting a network shutdown.",
+          "Mission: Reconstruct the chronological kill-signal timeline and file the official verdict.",
+          "Objective: Secure justice for Priya Mehta before the link is lost."
+        ]}
+        onComplete={() => setShowIntro(false)}
+      />
     );
   }
 

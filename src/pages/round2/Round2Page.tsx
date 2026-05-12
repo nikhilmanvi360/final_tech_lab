@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { useSharedState } from "../../hooks/useSharedState";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../services/api";
+import { RoundCutscene } from "../../components/RoundCutscene";
 
 const GRID_W = 36;
 const GRID_H = 24;
@@ -488,6 +489,25 @@ const INITIAL_ENTITIES: Entity[] = [
 export function Round2Page() {
   const { team } = useOutletContext<{ team: any }>();
   const isIntel = team?.playerRole?.includes("Intel");
+  const [showIntro, setShowIntro] = useState(true);
+
+  if (showIntro) {
+    return (
+      <RoundCutscene
+        roundNumber={2}
+        title="Newsroom Infiltration"
+        subtitle="Physical Site Breach"
+        description={[
+          "Bypassing physical security protocols...",
+          "Warning: Newsroom floor is patrolled by Sec-Bot Alphas.",
+          "Note: Intel Officers can see bot paths and hidden clues, Field Agents cannot.",
+          "Mission: Infiltrate the server room, recover wiped drive logs, and bypass the laser grid.",
+          "Objective: Collect 5 key evidence links and confront the Editor."
+        ]}
+        onComplete={() => setShowIntro(false)}
+      />
+    );
+  }
 
   const [removedEntities, setRemovedEntities] = useSharedState<string[]>(
     "r2_removed",

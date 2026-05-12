@@ -23,6 +23,15 @@ body::after {
   overflow: hidden;
 }
 
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+}
+
 @keyframes glitch {
   0% { transform: translate(0) }
   20% { transform: translate(-2px, 2px) skewX(-10deg) }

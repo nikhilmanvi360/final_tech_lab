@@ -8,11 +8,13 @@ import {
 import { useSharedState } from "../../hooks/useSharedState";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../../services/api";
+import { RoundCutscene } from "../../components/RoundCutscene";
 
 export function Round1Page() {
   const { team } = useOutletContext<{ team: any }>();
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showIntro, setShowIntro] = useState(true);
 
   const DB: Record<string, any[]> = {
     weather_reports: [
@@ -547,6 +549,24 @@ export function Round1Page() {
   };
 
   const isIntel = team?.playerRole?.includes("Intel");
+
+  if (showIntro) {
+    return (
+      <RoundCutscene
+        roundNumber={1}
+        title="Database Breach"
+        subtitle="Archive Discrepancy Analysis"
+        description={[
+          "Bypassing Sundaram Infrastructure's initial firewall...",
+          "Accessing the Post-Mortem Report filed by Inspector R. Varma.",
+          "Warning: Discrepancies detected between official logs and sensor data.",
+          "Mission: Use SQL injections to cross-reference weather, IP, and financial logs.",
+          "Objective: Find 5 key contradictions to build the case."
+        ]}
+        onComplete={() => setShowIntro(false)}
+      />
+    );
+  }
 
   return (
     <div className="h-full flex flex-col pt-2">
