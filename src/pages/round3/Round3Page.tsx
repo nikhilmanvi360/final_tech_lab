@@ -60,6 +60,18 @@ const PHASE_A_CARDS = [
 
 const CORRECT_CHAIN = [1, 2, 3, 4, 5];
 
+const ROUND3_INTRO = {
+  title: "Final Verdict",
+  subtitle: "Operational Dossier Assembly",
+  description: [
+    "Compiling all recovered evidence fragments...",
+    "Establishing a secure broadcast to the independent tribunal.",
+    "Warning: Sundaram's legal team is attempting a network shutdown.",
+    "Mission: Reconstruct the chronological kill-signal timeline and file the official verdict.",
+    "Objective: Secure justice for Priya Mehta before the link is lost."
+  ]
+};
+
 export function Round3Page() {
   const { team } = useOutletContext<{ team: any }>();
   const isIntel = team?.playerRole?.includes("Intel");
@@ -180,15 +192,9 @@ export function Round3Page() {
     return (
       <RoundCutscene
         roundNumber={3}
-        title="Final Verdict"
-        subtitle="Operational Dossier Assembly"
-        description={[
-          "Compiling all recovered evidence fragments...",
-          "Establishing a secure broadcast to the independent tribunal.",
-          "Warning: Sundaram's legal team is attempting a network shutdown.",
-          "Mission: Reconstruct the chronological kill-signal timeline and file the official verdict.",
-          "Objective: Secure justice for Priya Mehta before the link is lost."
-        ]}
+        title={ROUND3_INTRO.title}
+        subtitle={ROUND3_INTRO.subtitle}
+        description={ROUND3_INTRO.description}
         onComplete={() => setShowIntro(false)}
       />
     );

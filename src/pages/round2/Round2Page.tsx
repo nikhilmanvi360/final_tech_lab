@@ -35,6 +35,18 @@ const LASER_OVERRIDE_MS = 8000;
 const LURE_ACTIVE_MS = 10000;
 const LURE_COOLDOWN_MS = 18000;
 
+const ROUND2_INTRO = {
+  title: "Newsroom Infiltration",
+  subtitle: "Physical Site Breach",
+  description: [
+    "Bypassing physical security protocols...",
+    "Warning: Newsroom floor is patrolled by Sec-Bot Alphas.",
+    "Note: Intel Officers can see bot paths and hidden clues, Field Agents cannot.",
+    "Mission: Infiltrate the server room, recover wiped drive logs, and bypass the laser grid.",
+    "Objective: Collect 5 key evidence links and confront the Editor."
+  ]
+};
+
 type DialogueOption = {
   text: string;
   nextNode?: string;
@@ -1191,15 +1203,9 @@ export function Round2Page() {
     return (
       <RoundCutscene
         roundNumber={2}
-        title="Newsroom Infiltration"
-        subtitle="Physical Site Breach"
-        description={[
-          "Bypassing physical security protocols...",
-          "Warning: Newsroom floor is patrolled by Sec-Bot Alphas.",
-          "Note: Intel Officers can see bot paths and hidden clues, Field Agents cannot.",
-          "Mission: Infiltrate the server room, recover wiped drive logs, and bypass the laser grid.",
-          "Objective: Collect 5 key evidence links and confront the Editor."
-        ]}
+        title={ROUND2_INTRO.title}
+        subtitle={ROUND2_INTRO.subtitle}
+        description={ROUND2_INTRO.description}
         onComplete={() => setShowIntro(false)}
       />
     );

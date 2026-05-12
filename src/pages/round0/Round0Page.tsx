@@ -38,6 +38,17 @@ const TASKS = [
   },
 ];
 
+const ROUND0_INTRO = {
+  title: "Diagnostics",
+  subtitle: "System Access Restoration",
+  description: [
+    "Establishing secure link to the Newsroom network...",
+    "Warning: Core system files are corrupted or redacted.",
+    "Mission: Reconstruct the source list and bypass visual redaction filters.",
+    "Note: Field Agents must execute the Python decryption tools to proceed."
+  ]
+};
+
 export function Round0Page() {
   const { team } = useOutletContext<{ team: any }>();
   const playerRole = (team?.playerRole || "").toLowerCase();
@@ -160,14 +171,9 @@ export function Round0Page() {
     return (
       <RoundCutscene
         roundNumber={0}
-        title="Diagnostics"
-        subtitle="System Access Restoration"
-        description={[
-          "Establishing secure link to the Newsroom network...",
-          "Warning: Core system files are corrupted or redacted.",
-          "Mission: Reconstruct the source list and bypass visual redaction filters.",
-          "Note: Field Agents must execute the Python decryption tools to proceed."
-        ]}
+        title={ROUND0_INTRO.title}
+        subtitle={ROUND0_INTRO.subtitle}
+        description={ROUND0_INTRO.description}
         onComplete={() => setShowIntro(false)}
       />
     );
