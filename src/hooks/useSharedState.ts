@@ -17,6 +17,8 @@ export function useSharedState<T>(
 
   // 1. Firebase Listener (Primary Real-time)
   useEffect(() => {
+    if (!db) return;
+    
     const docRef = doc(db, "shared_states", key);
     
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
@@ -48,9 +50,11 @@ export function useSharedState<T>(
       useGameStore.getState().setLocalSharedState(key, resolvedValue);
 
       // 2. Firebase Sync (Primary)
-      const docRef = doc(db, "shared_states", key);
-      setDoc(docRef, { value: resolvedValue }, { merge: true })
-        .catch(err => console.warn(`Firebase write failed for key: ${key}.`, err));
+      if (db) {
+        const docRef = doc(db, "shared_states", key);
+        setDoc(docRef, { value: resolvedValue }, { merge: true })
+          .catch(err => console.warn(`Firebase write failed for key: ${key}.`, err));
+      }
 
       // 3. Socket.io Sync (Secondary Fallback)
       if (socket) {

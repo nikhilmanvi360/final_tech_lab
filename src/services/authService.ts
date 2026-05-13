@@ -25,6 +25,7 @@ export const authService = {
    * If the account doesn't exist, it attempts to create it (Auto-provisioning)
    */
   async loginTeam(teamName: string, password: string) {
+    if (!auth || !db) throw new Error("Firebase Auth not initialized");
     const email = getVirtualEmail(teamName);
     
     try {
@@ -55,6 +56,7 @@ export const authService = {
   },
 
   async loginWithGoogle() {
+    if (!auth || !db) throw new Error("Firebase Auth not initialized");
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -82,10 +84,12 @@ export const authService = {
   },
 
   onAuthStateChange(callback: (user: User | null) => void) {
+    if (!auth) return () => {};
     return onAuthStateChanged(auth, callback);
   },
 
   async getTeamProfile(uid: string) {
+    if (!db) return null;
     const docRef = doc(db, "teams", uid);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() : null;

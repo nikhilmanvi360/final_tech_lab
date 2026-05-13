@@ -9,7 +9,7 @@ import { api as restApi } from "./restApi";
  */
 export const api = {
   async get<T = any>(endpoint: string, collectionName?: string, docId?: string): Promise<T> {
-    if (collectionName && docId) {
+    if (db && collectionName && docId) {
       try {
         const docRef = doc(db, collectionName, docId);
         const docSnap = await getDoc(docRef);
@@ -24,7 +24,7 @@ export const api = {
   },
 
   async post<T = any>(endpoint: string, data: any, collectionName?: string, docId?: string): Promise<T> {
-    if (collectionName && docId) {
+    if (db && collectionName && docId) {
       try {
         const docRef = doc(db, collectionName, docId);
         await setDoc(docRef, data, { merge: true });
@@ -37,7 +37,7 @@ export const api = {
   },
 
   async put<T = any>(endpoint: string, data: any, collectionName?: string, docId?: string): Promise<T> {
-    if (collectionName && docId) {
+    if (db && collectionName && docId) {
       try {
         const docRef = doc(db, collectionName, docId);
         await updateDoc(docRef, data);
@@ -50,7 +50,7 @@ export const api = {
   },
 
   async delete<T = any>(endpoint: string, collectionName?: string, docId?: string): Promise<T> {
-    if (collectionName && docId) {
+    if (db && collectionName && docId) {
       try {
         const docRef = doc(db, collectionName, docId);
         await deleteDoc(docRef);
