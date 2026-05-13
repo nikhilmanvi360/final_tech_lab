@@ -15,11 +15,17 @@ let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
 let auth: Auth | null = null;
 
-// Check if config is present and valid
+// Check if config is present and valid, AND if Firebase is explicitly enabled
+const isEnabled = import.meta.env.VITE_USE_FIREBASE === "true";
 const isConfigValid = 
+  isEnabled &&
   firebaseConfig.apiKey && 
   firebaseConfig.projectId && 
   firebaseConfig.projectId !== "YOUR_PROJECT_ID";
+
+if (isEnabled && !isConfigValid) {
+  console.warn("FIREBASE WARNING: Firebase is enabled but configuration is incomplete. Falling back to REST.");
+}
 
 if (isConfigValid) {
   try {
