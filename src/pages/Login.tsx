@@ -153,6 +153,35 @@ export function Login({ onLogin }: { onLogin: (session: any) => void }) {
             {loading ? "AUTHENTICATING..." : "ESTABLISH LINK"}
           </button>
 
+          <button
+            type="button"
+            onClick={async () => {
+              const randomId = Math.floor(1000 + Math.random() * 9000);
+              const guestName = `GUEST_${randomId}`;
+              setTeamName(guestName);
+              setPassword("test");
+              // Wait for state updates then submit would be better, but we can call handle manually
+              setLoading(true);
+              setError("");
+              try {
+                const data = await api.post<any>("/api/auth/login", {
+                  teamName: guestName,
+                  password: "test",
+                });
+                onLogin({ ...data.team, playerRole });
+                localStorage.setItem("playerRole", playerRole);
+              } catch (err: any) {
+                setError("Quick link protocol failed. Use manual credentials.");
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+            className="mt-2 bg-transparent hover:bg-gold/10 text-gold/60 hover:text-gold text-xs font-mono py-2 px-4 border border-gold/30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 group uppercase tracking-widest"
+          >
+            [ QUICK LINK: GUEST ACCESS ]
+          </button>
+
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border"></div>
