@@ -48,7 +48,11 @@ if (isConfigValid) {
     auth = null;
   }
 } else {
-  console.warn("FIREBASE WARNING: Configuration is missing. System will operate in REST FALLBACK mode.");
+  if (isEnabled) {
+    console.warn("FIREBASE WARNING: Configuration is incomplete. System will operate in REST FALLBACK mode.");
+  } else {
+    console.info("SYSTEM INFO: Firebase is disabled via config. Operating in REST mode.");
+  }
 }
 
 export { db, auth, isConfigValid };
