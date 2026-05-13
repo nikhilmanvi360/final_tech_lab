@@ -3,6 +3,8 @@ import {
   signOut, 
   onAuthStateChanged,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
   User
 } from "firebase/auth";
 import { auth, db } from "./firebase";
@@ -48,6 +50,29 @@ export const authService = {
           throw error; // Throw original auth error if creation fails
         }
       }
+      throw error;
+    }
+  },
+
+  async loginWithGoogle() {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      
+      // Check if profile exists, if not create one
+      const profile = await this.getTeamProfile(result.user.uid);
+      if (!profile) {
+        await setDoc(doc(db, "teams", result.user.uid), {
+          name: result.user.displayName || "Google Operative",
+          role: "detective",
+          score: 0,
+          createdAt: new Date().toISOString(),
+          isGoogleAccount: true
+        });
+      }
+      
+      return result.user;
+    } catch (error) {
       throw error;
     }
   },
