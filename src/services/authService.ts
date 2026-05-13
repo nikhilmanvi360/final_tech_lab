@@ -84,7 +84,10 @@ export const authService = {
   },
 
   onAuthStateChange(callback: (user: User | null) => void) {
-    if (!auth) return () => {};
+    if (!auth) {
+      callback(null);
+      return () => {};
+    }
     return onAuthStateChanged(auth, callback);
   },
 
