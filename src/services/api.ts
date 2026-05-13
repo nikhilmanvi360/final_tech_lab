@@ -1,77 +1,64 @@
-export interface RequestConfig extends RequestInit {
-  data?: any;
-}
+import { db } from "./firebase";
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { api as restApi } from "./restApi";
 
-export class ApiError extends Error {
-  status?: number;
-  data?: any;
-
-  constructor(message: string, status?: number, data?: any) {
-    super(message);
-    this.status = status;
-    this.data = data;
-    this.name = "ApiError";
-  }
-}
-
+/**
+ * Hybrid API that prioritizes Firebase (Firestore) for data persistence,
+ * but falls back to the existing REST API if Firebase is unavailable
+ * or for specific non-firebase endpoints.
+ */
 export const api = {
-  async request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
-    const { data, headers, ...customConfig } = config;
-
-    const configHeaders: HeadersInit = {
-      "Content-Type": "application/json",
-      ...headers,
-    };
-
-    const requestConfig: RequestInit = {
-      ...customConfig,
-      headers: configHeaders,
-      body: data ? JSON.stringify(data) : undefined,
-    };
-
-    try {
-      const response = await fetch(endpoint, requestConfig);
-
-      // Handle 204 No Content
-      if (response.status === 204) {
-        return {} as T;
+  async get<T = any>(endpoint: string, collectionName?: string, docId?: string): Promise<T> {
+    if (collectionName && docId) {
+      try {
+        const docRef = doc(db, collectionName, docId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data() as T;
+        }
+      } catch (e) {
+        console.warn(`Firebase GET failed for ${collectionName}/${docId}, falling back to REST.`, e);
       }
-
-      const responseData = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new ApiError(
-          responseData.error || response.statusText || "API request failed",
-          response.status,
-          responseData,
-        );
-      }
-
-      return responseData;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      console.error(`API Error on ${endpoint}:`, error);
-      throw new ApiError(
-        error instanceof Error ? error.message : "Unknown error",
-      );
     }
+    return restApi.get<T>(endpoint);
   },
 
-  get<T = any>(endpoint: string, config?: RequestConfig) {
-    return api.request<T>(endpoint, { ...config, method: "GET" });
+  async post<T = any>(endpoint: string, data: any, collectionName?: string, docId?: string): Promise<T> {
+    if (collectionName && docId) {
+      try {
+        const docRef = doc(db, collectionName, docId);
+        await setDoc(docRef, data, { merge: true });
+        return { success: true, ...data } as unknown as T;
+      } catch (e) {
+        console.warn(`Firebase POST failed for ${collectionName}/${docId}, falling back to REST.`, e);
+      }
+    }
+    return restApi.post<T>(endpoint, data);
   },
 
-  post<T = any>(endpoint: string, data?: any, config?: RequestConfig) {
-    return api.request<T>(endpoint, { ...config, method: "POST", data });
+  async put<T = any>(endpoint: string, data: any, collectionName?: string, docId?: string): Promise<T> {
+    if (collectionName && docId) {
+      try {
+        const docRef = doc(db, collectionName, docId);
+        await updateDoc(docRef, data);
+        return { success: true, ...data } as unknown as T;
+      } catch (e) {
+        console.warn(`Firebase PUT failed for ${collectionName}/${docId}, falling back to REST.`, e);
+      }
+    }
+    return restApi.put<T>(endpoint, data);
   },
 
-  put<T = any>(endpoint: string, data?: any, config?: RequestConfig) {
-    return api.request<T>(endpoint, { ...config, method: "PUT", data });
-  },
-
-  delete<T = any>(endpoint: string, config?: RequestConfig) {
-    return api.request<T>(endpoint, { ...config, method: "DELETE" });
-  },
+  async delete<T = any>(endpoint: string, collectionName?: string, docId?: string): Promise<T> {
+    if (collectionName && docId) {
+      try {
+        const docRef = doc(db, collectionName, docId);
+        await deleteDoc(docRef);
+        return { success: true } as unknown as T;
+      } catch (e) {
+        console.warn(`Firebase DELETE failed for ${collectionName}/${docId}, falling back to REST.`, e);
+      }
+    }
+    return restApi.delete<T>(endpoint);
+  }
 };
