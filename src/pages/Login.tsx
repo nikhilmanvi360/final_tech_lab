@@ -1,6 +1,7 @@
 import { useState, FormEvent } from "react";
 import { TerminalSquare, Lock, Users, AlertCircle } from "lucide-react";
 import { api } from "../services/api";
+import { authService } from "../services/authService";
 
 export function Login({ onLogin }: { onLogin: (session: any) => void }) {
   const [teamName, setTeamName] = useState("");
@@ -18,28 +19,44 @@ export function Login({ onLogin }: { onLogin: (session: any) => void }) {
     setError("");
 
     try {
-      const data = await api.post<any>("/api/auth/login", {
-        teamName,
-        password,
-      });
+      // 1. Primary: Firebase Auth
+      let userData: any;
+      try {
+        const firebaseUser = await authService.loginTeam(teamName, password);
+        const profile = await authService.getTeamProfile(firebaseUser.uid);
+        userData = {
+          id: firebaseUser.uid,
+          name: teamName,
+          role: profile?.role || "detective",
+          score: profile?.score || 0,
+          playerRole
+        };
+      } catch (fbErr: any) {
+        console.warn("Firebase Auth failed, trying REST fallback...", fbErr);
+        // 2. Fallback: REST API
+        const data = await api.post<any>("/api/auth/login", {
+          teamName,
+          password,
+        });
+        userData = { ...data.team, playerRole };
+      }
 
-      onLogin({ ...data.team, playerRole });
+      onLogin(userData);
       localStorage.setItem("playerRole", playerRole);
     } catch (err: any) {
       let errorMessage = err.message || "Connection to ARCHIVE failed.";
 
-      if (errorMessage.includes("Invalid credentials")) {
+      if (errorMessage.includes("Invalid credentials") || err.code === 'auth/invalid-credential') {
         errorMessage =
           "ACCESS DENIED: Authentication failed. Please verify your team identity and clearance code.";
       } else if (errorMessage.toLowerCase().includes("disabled")) {
         errorMessage =
           "ACCOUNT LOCKED: Your team has been disabled by ARCHIVE administrators.";
-      } else if (errorMessage.includes("Too many attempts")) {
+      } else if (errorMessage.includes("Too many attempts") || err.code === 'auth/too-many-requests') {
         errorMessage =
           "RATE LIMITED: Security protocol initiated. Please wait 60 seconds before retrying.";
-      } else if (errorMessage.includes("Missing credentials")) {
-        errorMessage =
-          "MALFORMED REQUEST: Both Team Identity and Clearance Code are required.";
+      } else if (errorMessage.includes("wrong-password") || err.code === 'auth/wrong-password') {
+        errorMessage = "INVALID CODE: The clearance code provided does not match our records.";
       }
 
       setError(errorMessage);

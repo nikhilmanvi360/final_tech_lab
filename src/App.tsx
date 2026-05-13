@@ -14,6 +14,7 @@ import { AdminManifest } from "./pages/admin/AdminManifest";
 import { AdminTeams } from "./pages/admin/AdminTeams";
 import { AdminCaseBuilder } from "./pages/admin/AdminCaseBuilder";
 import { api } from "./services/api";
+import { authService } from "./services/authService";
 
 const Round0Page = lazy(() => import("./pages/round0/Round0Page").then(m => ({ default: m.Round0Page })));
 const Round1Page = lazy(() => import("./pages/round1/Round1Page").then(m => ({ default: m.Round1Page })));
@@ -37,18 +38,42 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api
-      .get<any>("/api/auth/me")
-      .then((data) => {
-        if (data.team) {
-          const storedRole =
-            localStorage.getItem("playerRole") ||
-            "1st Year Student (Field Agent)";
-          setSession({ ...data.team, playerRole: storedRole });
+    // 1. Firebase Auth Listener (Primary)
+    const unsubscribe = authService.onAuthStateChange(async (user) => {
+      if (user) {
+        try {
+          const profile = await authService.getTeamProfile(user.uid);
+          const storedRole = localStorage.getItem("playerRole") || "1st Year Student (Field Agent)";
+          setSession({
+            id: user.uid,
+            name: profile?.name || "Unknown Team",
+            role: profile?.role || "detective",
+            score: profile?.score || 0,
+            playerRole: storedRole
+          });
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error("Firebase session recovery failed", e);
         }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+
+      // 2. REST Fallback (If no Firebase user or Firebase fails)
+      api
+        .get<any>("/api/auth/me")
+        .then((data) => {
+          if (data.team) {
+            const storedRole =
+              localStorage.getItem("playerRole") ||
+              "1st Year Student (Field Agent)";
+            setSession({ ...data.team, playerRole: storedRole });
+          }
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    });
+
+    return () => unsubscribe();
   }, []);
 
   if (loading) {

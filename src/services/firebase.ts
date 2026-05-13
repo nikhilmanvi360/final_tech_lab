@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,6 +10,11 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
+
+// Check if project ID is missing (common issue when .env is not loaded or server not restarted)
+if (!firebaseConfig.projectId || firebaseConfig.projectId === "YOUR_PROJECT_ID") {
+  console.error("FIREBASE ERROR: Project ID is missing. Please check your .env file and RESTART your dev server.");
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -27,4 +33,6 @@ try {
   console.warn("Firebase persistence initialization failed", e);
 }
 
-export { db };
+const auth = getAuth(app);
+
+export { db, auth };
